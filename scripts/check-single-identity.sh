@@ -12,6 +12,7 @@ URL = "https://codeberg.org/caniko/rs-veritasium.git"
 REV = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf"
 SOURCE = f"git+{URL}?rev={REV}#{REV}"
 ENGINE = set(Path("scripts/bevy-0.20.1-packages.txt").read_text().splitlines())
+FORK_ONLY = ("harbor-bevy-net", "veritasium_replicated", "veritasium_replicated_macros")
 
 
 def require(condition, message):
@@ -59,6 +60,18 @@ def check_git_pins(workspace, location, pkgs, expected):
             f"unexpected {sorted(actual - expected)}")
 
 
+def check_no_fork(workspace, graph):
+    fork_only = sorted(graph.keys() & FORK_ONLY)
+    require(not fork_only, f"{workspace}: resolved fork-only packages: {fork_only}")
+    fork_sources = {
+        p["source"] for ids in graph.values() for p in ids.values()
+        if (p.get("source") or "").startswith("git+")
+        and p["source"].split("?", 1)[0].split("#", 1)[0].rstrip("/").removesuffix(".git")
+        .endswith("/rs-veritasium")
+    }
+    require(not fork_sources, f"{workspace}: resolved unexpected Veritasium Git sources: {sorted(fork_sources)}")
+
+
 def check_stock_like(workspace, expected_locals, allowed_local_patches, git_pins=frozenset()):
     manifest = read_toml(workspace / "Cargo.toml")
     lock = read_toml(workspace / "Cargo.lock")
@@ -67,6 +80,7 @@ def check_stock_like(workspace, expected_locals, allowed_local_patches, git_pins
             f"{workspace}: unexpected patches in manifest or lockfile")
     check_git_pins(workspace, "lockfile", lock["package"], git_pins)
     graph = packages(workspace)
+    check_no_fork(workspace, graph)
     check_git_pins(workspace, "resolved graph",
                    (p for ids in graph.values() for p in ids.values()), git_pins)
     require("bevy" in graph, f"{workspace}: Bevy not resolved")
@@ -104,13 +118,20 @@ print(
 )
 
 fork = Path("veritasium")
-patches = read_toml(fork / "Cargo.toml")["patch"]["crates-io"]
+patch_tables = read_toml(fork / "Cargo.toml")["patch"]
+require(patch_tables.keys() == {"crates-io"}, "Fork: unexpected patch registry")
+patches = patch_tables["crates-io"]
 require(len(ENGINE) == 74 and "bevy-settings" in ENGINE, "Invalid engine package inventory")
-require(patches.keys() == ENGINE,
-        f"Fork patch coverage: missing {sorted(ENGINE - patches.keys())}; "
-        f"unexpected {sorted(patches.keys() - ENGINE)}")
-for name, pin in patches.items():
-    require(pin == {"git": URL, "rev": REV}, f"Wrong fork pin for {name}: {pin}")
+fork_local_patches = {
+    name: {**patch, "path": f"../{patch['path']}"}
+    for name, patch in STOCK_ALLOWED_LOCAL_PATCHES.items()
+}
+expected_fork_patches = {name: {"git": URL, "rev": REV} for name in ENGINE} | fork_local_patches
+require(patches.keys() == expected_fork_patches.keys(),
+        f"Fork patch coverage: missing {sorted(expected_fork_patches.keys() - patches.keys())}; "
+        f"unexpected {sorted(patches.keys() - expected_fork_patches.keys())}")
+for name, pin in expected_fork_patches.items():
+    require(patches[name] == pin, f"Wrong fork pin for {name}: {patches[name]}")
 
 graph = packages(fork)
 resolved_engine = ENGINE & graph.keys()
@@ -121,11 +142,12 @@ for name in sorted(resolved_engine):
     pkg = next(iter(ids.values()))
     require((pkg["version"], pkg["source"]) == ("0.20.1", SOURCE),
             f"Fork: wrong version or source for {name}: {pkg['id']}")
-for name in ("veritasium_wire", "veritasium_replicated", "veritasium_replicated_macros"):
+for name in (*FORK_ONLY, "thespan", "thespan_bevy", "harbor-bevy-core", "veritasium_wire"):
     ids = graph[name]
     require(len(ids) == 1 and next(iter(ids.values()))["source"] is None,
             f"Fork: expected one local {name}: {list(ids)}")
-print(f"Fork: 74 patches; {len(resolved_engine)} resolved Bevy identities; one of each local crate",
+print(f"Fork: 74 Bevy patches and 4 local libp2p overrides; "
+      f"{len(resolved_engine)} resolved Bevy identities; one of each local crate",
       flush=True)
 
 steam_locals = ("harbor-bevy-steam", "harbor-bevy-core", "platform-attestation")
@@ -142,6 +164,7 @@ tools_lock = read_toml(tools / "Cargo.lock")
 require(not tools_manifest.get("patch") and not tools_lock.get("patch"),
         "crates/tools: unexpected patches")
 tools_graph = packages(tools)
+check_no_fork(tools, tools_graph)
 for name, ids in tools_graph.items():
     if name in ENGINE or name.startswith("bevy"):
         require(len(ids) == 1, f"crates/tools: duplicate {name}: {list(ids)}")

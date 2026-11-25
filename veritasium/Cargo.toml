@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+  "harbor-bevy-net",
   "replicated",
   "replicated-macros",
   "examples/replicated-grid-painter",
@@ -193,3 +194,7 @@ bevy_utils = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "231
 bevy_window = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
 bevy_winit = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
 bevy_world_serialization = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+libp2p-swarm = { path = "../vendor/libp2p-swarm-0.47.1" }
+libp2p-relay = { path = "../vendor/libp2p-relay-0.21.1" }
+libp2p-dns = { path = "../crates/net/libp2p-dns-disabled", version = "0.44.0" }
+libp2p-mdns = { path = "../crates/net/libp2p-mdns-disabled", version = "0.48.0" }
