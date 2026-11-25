@@ -1,0 +1,16 @@
+[package]
+name = "localization-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Bevy-independent localization core"
+readme = "README.md"
+
+[lints]
+workspace = true
+
+[dependencies]
+icu_locale = { version = "=2.2.0", default-features = false, features = ["compiled_data"] }
+icu_plurals = { version = "=2.2.0", default-features = false, features = ["compiled_data"] }

@@ -1,0 +1,20 @@
+[package]
+name = "telemetry-client"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Engine-independent HTTP client for generic telemetry envelopes"
+
+[lints]
+workspace = true
+
+[dependencies]
+http-client = { path = "../http-client", version = "0.1.0" }
+telemetry-protocol = { path = "../telemetry-protocol", version = "0.1.0" }
+reqwest = { workspace = true }
+rkyv = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+url = { workspace = true }

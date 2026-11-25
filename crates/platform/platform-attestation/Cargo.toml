@@ -1,0 +1,17 @@
+[package]
+name = "platform-attestation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Bevy-independent platform attestation core"
+
+[lints]
+workspace = true
+
+[dependencies]
+serde_json = { workspace = true }
+blake3 = { workspace = true }
+base64 = "0.22"
+sha2 = "0.10"

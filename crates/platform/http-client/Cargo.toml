@@ -1,0 +1,20 @@
+[package]
+name = "http-client"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "reqwest client builder on rustls with the ring provider"
+
+[lints]
+workspace = true
+
+[dependencies]
+reqwest = { workspace = true }
+# ring is the provider libp2p already builds; no C TLS library.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+
+# reqwest's platform verifier needs JNI setup on Android; trust bundled roots.
+[target.'cfg(target_os = "android")'.dependencies]
+webpki-root-certs = "1"

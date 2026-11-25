@@ -1,0 +1,15 @@
+[package]
+name = "trust-safety"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Bevy-independent trust and safety core"
+
+[lints]
+workspace = true
+
+[dependencies]
+ed25519-dalek = { version = "2", default-features = false, features = ["alloc", "std"] }
+rand = { workspace = true }
