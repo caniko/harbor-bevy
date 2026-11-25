@@ -1,0 +1,5 @@
+error: missing #[replicated(resource_id = N)] stable resource id
+ --> tests/derive_replicated_ui/missing_resource_id.rs:4:8
+  |
+4 | struct MissingResourceId;
+  |        ^^^^^^^^^^^^^^^^^

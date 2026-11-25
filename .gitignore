@@ -1,0 +1,7 @@
+/target/
+/veritasium/target/
+/steam/target/
+/.work/
+result
+result-*
+.direnv/

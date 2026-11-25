@@ -1,0 +1,40 @@
+[package]
+name = "veritasium_replicated_macros"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97.1"
+description = "Procedural macros for bevy_replicated component and resource replication markers."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/caniko/harbor-bevy"
+readme = "README.md"
+publish = false
+keywords = ["bevy", "replication", "macros", "derive"]
+categories = ["game-development", "network-programming"]
+include = [
+  "Cargo.toml",
+  "README.md",
+  "LICENSE",
+  "LICENSE-APACHE",
+  "LICENSE-MIT",
+  "src/**",
+]
+
+# Package identity is `veritasium_replicated_macros`; the lib target keeps the
+# `bevy_replicated_macros` alias so the parent crate's re-exports stay stable.
+[lib]
+name = "bevy_replicated_macros"
+proc-macro = true
+
+[dependencies]
+quote = "1"
+syn = { version = "2", features = ["full"] }
+
+[dev-dependencies]
+trybuild = "1"
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

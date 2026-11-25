@@ -1,0 +1,5 @@
+error: missing #[replicated(component_id = N)] stable component id
+ --> tests/derive_replicated_ui/missing_component_id.rs:4:8
+  |
+4 | struct MissingComponentId;
+  |        ^^^^^^^^^^^^^^^^^^

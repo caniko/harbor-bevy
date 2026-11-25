@@ -1,0 +1,17 @@
+[package]
+name = "bevy-replicated-grid-painter"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97.1"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/caniko/harbor-bevy"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+bevy = { workspace = true, features = ["std", "bevy_state"] }
+bevy_replicated = { workspace = true }
+blake3 = { workspace = true }
+rkyv = { workspace = true }

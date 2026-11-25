@@ -1,0 +1,5 @@
+error: unsupported replicated attribute
+ --> tests/derive_replicated_ui/garbage_resource_attr.rs:4:14
+  |
+4 | #[replicated(garbage)]
+  |              ^^^^^^^

@@ -1,0 +1,18 @@
+[package]
+name = "veritasium_wire"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97.1"
+description = "Bevy-free wire-identity newtypes shared by the veritasium replication stack: player/seat IDs, battle/round/turn counters, outbound sequences, and peer-id bytes."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/caniko/harbor-bevy"
+keywords = ["replication", "networking", "deterministic", "newtypes"]
+categories = ["game-development", "network-programming"]
+
+[dependencies]
+derive_more = { version = "2", features = ["display", "from", "into"] }
+rkyv = { version = "0.8", default-features = true }
+smallvec = { version = "1.15", features = ["const_generics"] }
+
+[lints]
+workspace = true

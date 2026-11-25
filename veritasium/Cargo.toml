@@ -1,0 +1,195 @@
+[workspace]
+resolver = "2"
+members = [
+  "replicated",
+  "replicated-macros",
+  "examples/replicated-grid-painter",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97.1"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/caniko/harbor-bevy"
+
+[workspace.lints.rust]
+# Unsafe is limited to item-local, safety-documented exceptions.
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+
+# Allowed: noisy or low-value for this Bevy/ECS codebase.
+doc_markdown = "allow"                              # Existing docs use game terms/acronyms heavily; doc polish is not release-blocking.
+explicit_iter_loop = "allow"                        # Bevy query iteration is clearer when the borrowing mode stays explicit.
+missing_errors_doc = "allow"                        # Solo project public APIs churn quickly; revisit before 1.0.
+missing_panics_doc = "allow"                        # Solo project doc burden is too high for every panic path before 1.0.
+module_name_repetitions = "allow"                   # Crate/type prefixes are intentional for cross-crate searchability.
+must_use_candidate = "allow"                        # Bevy builders and registration helpers are often intentionally ignored.
+needless_pass_by_value = "allow"                    # Bevy systems take Res<T>, Query, Commands, and events by value idiomatically.
+print_stderr = "allow"                              # CLI tools and test harnesses legitimately print diagnostics.
+print_stdout = "allow"                              # CLI tools and test harnesses legitimately print user-facing output.
+redundant_closure_for_method_calls = "allow"        # Small closures often document adapter intent better than method pointers.
+return_self_not_must_use = "allow"                  # Fluent setup APIs often return Self while being used for side-effectful configuration.
+too_many_arguments = "allow"                        # Bevy systems commonly receive several SystemParam inputs.
+too_many_lines = "allow"                            # Bevy systems and scenario setup naturally group long procedural logic.
+type_complexity = "allow"                           # ECS query/filter types are verbose but local and explicit.
+uninlined_format_args = "allow"                     # Captured format-arg style is cosmetic churn, not a correctness signal.
+assigning_clones = "allow"                          # Mechanical cleanup; keep visible in the policy doc until an autofix-only pass lands.
+assert_is_empty = "allow"                           # New in clippy 0.1.100; its rewrites need type ascriptions (`assert_eq!(x, [] as [T; 0])`), less readable than `assert!(x.is_empty())`.
+bool_to_int_with_if = "allow"                       # Mechanical cleanup; no correctness value compared with the current phase risk.
+case_sensitive_file_extension_comparisons = "allow" # CLI/test tools inspect controlled log filenames.
+cast_lossless = "allow"                             # Cast cleanup is deferred to a focused correctness pass with per-site invariants.
+cast_possible_truncation = "allow"                  # Cast cleanup is deferred to a focused correctness pass with per-site invariants.
+cast_possible_wrap = "allow"                        # Cast cleanup is deferred to a focused correctness pass with per-site invariants.
+cast_precision_loss = "allow"                       # Cast cleanup is deferred to a focused correctness pass with per-site invariants.
+cast_sign_loss = "allow"                            # Cast cleanup is deferred to a focused correctness pass with per-site invariants.
+cloned_instead_of_copied = "allow"                  # Mechanical cleanup; keep behavior-neutral churn out of the policy pivot.
+comparison_chain = "allow"                          # Structural style cleanup; current matches are readable enough to defer.
+doc_link_with_quotes = "allow"                      # Rustdoc polish is lower priority than compile and gameplay gates.
+duration_suboptimal_units = "allow"                 # Readability preference; existing durations are explicit and correct.
+elidable_lifetime_names = "allow"                   # Explicit lifetimes are often clearer in networking and ECS helper APIs.
+enum_glob_use = "allow"                             # Local enum variant imports keep dense match code readable.
+filter_map_next = "allow"                           # Mechanical iterator cleanup; defer to an autofix-only pass.
+float_cmp = "allow"                                 # Tests often compare exact sentinel timer values; production cases need per-site review.
+fn_params_excessive_bools = "allow"                 # UI/helper functions often mirror several independent toggles.
+format_collect = "allow"                            # Small formatting helpers can trade allocation optimality for clarity.
+format_push_string = "allow"                        # Mechanical cleanup; defer to an autofix-only pass.
+if_not_else = "allow"                               # Mechanical control-flow cleanup; current branch ordering often emphasizes the happy path.
+ignore_without_reason = "allow"                     # Existing ignored results need a focused audit before requiring reasons everywhere.
+ignored_unit_patterns = "allow"                     # Mechanical cleanup; defer to an autofix-only pass.
+implicit_clone = "allow"                            # Mechanical clone spelling cleanup; defer to an autofix-only pass.
+implicit_hasher = "allow"                           # Public API hasher genericity is not a release gate for this workspace.
+default_trait_access = "allow"                      # Type-qualified defaults are clearer only in some dense call sites.
+ip_constant = "allow"                               # Tests sometimes spell loopback octets to mirror serialized configs.
+items_after_statements = "allow"                    # Local test helpers sometimes read better near their use sites.
+large_futures = "allow"                             # Async transport code needs behavior-focused review before boxing futures.
+manual_assert = "allow"                             # Existing tests and tools use explicit panic paths for context.
+manual_is_variant_and = "allow"                     # Mechanical Option/Result predicate cleanup; defer to an autofix-only pass.
+manual_let_else = "allow"                           # Mechanical cleanup; defer to an autofix-only pass.
+manual_midpoint = "allow"                           # Arithmetic cleanup; low value compared with range/cast review.
+map_unwrap_or = "allow"                             # Mechanical cleanup; defer to an autofix-only pass.
+match_same_arms = "allow"                           # Structural cleanup; merging arms can obscure command classification intent.
+match_wildcard_for_single_variants = "allow"        # Wildcard matches intentionally tolerate enum growth in some callers.
+missing_fields_in_debug = "allow"                   # Security-sensitive Debug impls deliberately omit secret material.
+no_effect_underscore_binding = "allow"              # Some compile-time smoke tests only assert constructibility.
+needless_continue = "allow"                         # Mechanical loop cleanup; defer to an autofix-only pass.
+redundant_else = "allow"                            # Mechanical control-flow cleanup; defer to an autofix-only pass.
+ref_option = "allow"                                # API cleanup is deferred to a focused signature-compatibility pass.
+semicolon_if_nothing_returned = "allow"             # Mechanical cleanup; defer to an autofix-only pass.
+similar_names = "allow"                             # Dense game/state code often uses nearby domain terms intentionally.
+single_match_else = "allow"                         # Mechanical control-flow cleanup; defer to an autofix-only pass.
+stable_sort_primitive = "allow"                     # Sort performance micro-cleanup is not part of this policy pivot.
+struct_excessive_bools = "allow"                    # CLI/wire structs preserve flag shape; refactor only with API review.
+struct_field_names = "allow"                        # Repeated field prefixes can improve serde/debug readability.
+trivially_copy_pass_by_ref = "allow"                # API cleanup is deferred to a focused signature-compatibility pass.
+unnecessary_literal_bound = "allow"                 # Macro/helper bounds need a focused review before simplification.
+unnecessary_semicolon = "allow"                     # Mechanical cleanup; defer to an autofix-only pass.
+unnecessary_wraps = "allow"                         # Some APIs keep Result/Option shape for call-site symmetry or future variants.
+unreadable_literal = "allow"                        # Existing literals are domain constants and test values; review with nearby context.
+unchecked_time_subtraction = "allow"                # Tests and timeout scaffolding subtract bounded durations intentionally.
+unnested_or_patterns = "allow"                      # Mechanical pattern cleanup; defer to an autofix-only pass.
+unnecessary_debug_formatting = "allow"              # CLI diagnostics may prefer escaped Debug paths over Display output.
+unused_async = "allow"                              # Trait and transport APIs may require async shape before implementations need await.
+unused_self = "allow"                               # Method shape is sometimes kept for trait-like test fixtures and future extension.
+used_underscore_binding = "allow"                   # Test scaffolding often uses underscore names to signal intentionally narrow use.
+wildcard_imports = "allow"                          # Bevy prelude and dense test modules commonly use wildcard imports intentionally.
+
+# Warn: existing default/style lints this workspace already tracks explicitly.
+borrow_deref_ref = "warn"
+clone_on_copy = "warn"
+collapsible_if = "warn"
+collapsible_str_replace = "warn"
+if_same_then_else = "warn"
+manual_find = "warn"
+new_without_default = "warn"
+unnecessary_get_then_check = "warn"
+unnecessary_unwrap = "warn"
+
+# Denied or highlighted: CI should catch accidental debug scaffolding.
+dbg_macro = "deny"
+todo = "deny"
+
+[workspace.dependencies]
+bevy = { version = "0.20.1", default-features = false }
+bevy_replicated = { package = "veritasium_replicated", path = "replicated", version = "0.1.0" }
+veritasium_wire = { path = "../crates/net/veritasium_wire", version = "0.1.0" }
+blake3 = "1"
+rkyv = "0.8.17"
+
+[patch.crates-io]
+bevy = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy-settings = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_a11y = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_android = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_animation = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_animation_macros = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_anti_alias = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_app = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_asset = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_asset_macros = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_audio = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_camera = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_camera_controller = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_clipboard = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_color = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_core_pipeline = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_curve = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_derive = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_dev_tools = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_diagnostic = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_dylib = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_ecs = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_ecs_macro_logic = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_ecs_macros = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_encase_derive = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_extract = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_extract_macros = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_feathers = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_gilrs = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_gizmos = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_gizmos_macros = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_gizmos_render = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_gltf = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_image = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_input = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_input_focus = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_internal = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_light = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_log = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_macro_utils = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_material = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_material_macros = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_math = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_mesh = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_pbr = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_picking = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_platform = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_post_process = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_ptr = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_reflect = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_reflect_derive = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_remote = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_render = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_render_macros = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_scene = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_scene_macros = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_shader = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_shape = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_solari = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_sprite = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_sprite_render = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_state = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_state_macros = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_tasks = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_text = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_time = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_transform = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_ui = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_ui_render = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_ui_widgets = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_utils = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_window = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_winit = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }
+bevy_world_serialization = { git = "https://codeberg.org/caniko/rs-veritasium.git", rev = "23181dcb456a5f175f6fabcdebbf4a5f5d12f4cf" }

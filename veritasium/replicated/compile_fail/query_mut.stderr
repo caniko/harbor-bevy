@@ -1,0 +1,107 @@
+error[E0271]: type mismatch resolving `<MyReplicatedComponent as Component>::Mutability == Mutable`
+   --> compile_fail/query_mut.rs:8:26
+    |
+  8 | fn bad_system(mut query: Query<&mut MyReplicatedComponent>) {
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ type mismatch resolving `<MyReplicatedComponent as Component>::Mutability == Mutable`
+    |
+note: expected this to be `Mutable`
+   --> compile_fail/query_mut.rs:4:10
+    |
+  4 | #[derive(Replicated, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+    |          ^^^^^^^^^^
+    = note: required for `&mut MyReplicatedComponent` to implement `QueryData`
+note: required by a bound in `bevy::bevy_ecs::system::Query`
+   --> /veritasium/crates/bevy_ecs/src/system/query.rs:487:37
+    |
+487 | pub struct Query<'world, 'state, D: QueryData, F: QueryFilter = ()> {
+    |                                     ^^^^^^^^^ required by this bound in `Query`
+    = note: this error originates in the derive macro `Replicated` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0271]: type mismatch resolving `<MyReplicatedComponent as Component>::Mutability == Mutable`
+   --> compile_fail/query_mut.rs:9:26
+    |
+  9 |     for mut component in &mut query {
+    |                          ^^^^^^^^^^ type mismatch resolving `<MyReplicatedComponent as Component>::Mutability == Mutable`
+    |
+note: expected this to be `Mutable`
+   --> compile_fail/query_mut.rs:4:10
+    |
+  4 | #[derive(Replicated, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+    |          ^^^^^^^^^^
+    = note: required for `&mut MyReplicatedComponent` to implement `QueryData`
+note: required by a bound in `bevy::bevy_ecs::system::Query`
+   --> /veritasium/crates/bevy_ecs/src/system/query.rs:487:37
+    |
+487 | pub struct Query<'world, 'state, D: QueryData, F: QueryFilter = ()> {
+    |                                     ^^^^^^^^^ required by this bound in `Query`
+    = note: this error originates in the derive macro `Replicated` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `&mut bevy::bevy_ecs::system::Query<'_, '_, &mut MyReplicatedComponent>` is not an iterator
+    --> compile_fail/query_mut.rs:9:26
+     |
+   9 |     for mut component in &mut query {
+     |                          ^^^^^^^^^^ `&mut bevy::bevy_ecs::system::Query<'_, '_, &mut MyReplicatedComponent>` is not an iterator
+     |
+     = help: the trait `IntoIterator` is not implemented for `&mut bevy::bevy_ecs::system::Query<'_, '_, &mut MyReplicatedComponent>`
+help: the following other types implement trait `IntoIterator`
+    --> /veritasium/crates/bevy_ecs/src/system/query.rs:2874:1
+     |
+2874 | impl<'w, 's, D: IterQueryData, F: QueryFilter> IntoIterator for Query<'w, 's, D, F> {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `bevy::bevy_ecs::system::Query<'_, '_, D, F>`
+...
+2883 | impl<'w, 's, D: QueryData, F: QueryFilter> IntoIterator for &'w Query<'_, 's, D, F> {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `&bevy::bevy_ecs::system::Query<'_, '_, D, F>`
+...
+2892 | impl<'w, 's, D: IterQueryData, F: QueryFilter> IntoIterator for &'w mut Query<'_, 's, D, F> {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `&mut bevy::bevy_ecs::system::Query<'_, '_, D, F>`
+
+error[E0277]: `for<'a, 'b, 'c> fn(bevy::bevy_ecs::system::Query<'a, 'b, &'c mut MyReplicatedComponent>) {bad_system}` does not describe a valid system configuration
+   --> compile_fail/query_mut.rs:16:29
+    |
+ 16 |     app.add_systems(Update, bad_system);
+    |         -----------         ^^^^^^^^^^ invalid system configuration
+    |         |
+    |         required by a bound introduced by this call
+    |
+    = help: the trait `bevy::bevy_ecs::system::IntoSystem<(), (), _>` is not implemented for fn item `for<'a, 'b, 'c> fn(bevy::bevy_ecs::system::Query<'a, 'b, &'c mut MyReplicatedComponent>) {bad_system}`
+help: the following other types implement trait `bevy::bevy_ecs::system::IntoSystem<In, Out, Marker>`
+   --> /veritasium/crates/bevy_ecs/src/system/builder.rs:286:1
+    |
+286 | / impl<Marker, In, Out, Func, Builder> IntoSystem<In, Out, (IsBuilderSystem, Marker)>
+287 | |     for IntoBuilderSystem<Marker, In, Out, Func, Builder>
+288 | | where
+289 | |     Marker: 'static,
+...   |
+292 | |     Func: SystemParamFunction<Marker, In: FromInput<In>, Out: IntoResult<Out>>,
+293 | |     Builder: SystemParamBuilder<Func::Param> + Send + Sync + 'static,
+    | |_____________________________________________________________________^ `IntoBuilderSystem<Marker, In, Out, Func, Builder>` implements `bevy::bevy_ecs::system::IntoSystem<In, Out, (bevy::bevy_ecs::system::IsBuilderSystem, Marker)>`
+    |
+   ::: /veritasium/crates/bevy_ecs/src/system/adapter_system.rs:84:1
+    |
+ 84 | / impl<Func, S, I, O, M> IntoSystem<Func::In, Func::Out, (IsAdapterSystemMarker, I, O, M)>
+ 85 | |     for IntoAdapterSystem<Func, S>
+ 86 | | where
+ 87 | |     Func: Adapt<S::System>,
+ 88 | |     I: SystemInput,
+ 89 | |     S: IntoSystem<I, O, M>,
+    | |___________________________^ `IntoAdapterSystem<Func, S>` implements `bevy::bevy_ecs::system::IntoSystem<<Func as Adapt<<S as bevy::bevy_ecs::system::IntoSystem<I, O, M>>::System>>::In, <Func as Adapt<<S as bevy::bevy_ecs::system::IntoSystem<I, O, M>>::System>>::Out, (bevy::bevy_ecs::system::IsAdapterSystemMarker, I, O, M)>`
+    |
+   ::: /veritasium/crates/bevy_ecs/src/system/combinator.rs:409:1
+    |
+409 | / impl<A, B, N, IA, OA, IB, OB, MA, MB> IntoSystem<IA, OB, (IsPipeSystemMarker, OA, IB, MA, MB)>
+410 | |     for IntoPipeSystem<A, B, N>
+411 | | where
+412 | |     IA: SystemInput,
+...   |
+415 | |     N: PipeSystemName,
+416 | |     for<'a> IB: SystemInput<Inner<'a> = OA>,
+    | |____________________________________________^ `IntoPipeSystem<A, B, N>` implements `bevy::bevy_ecs::system::IntoSystem<IA, OB, (bevy::bevy_ecs::system::IsPipeSystemMarker, OA, IB, MA, MB)>`
+    = note: required for `for<'a, 'b, 'c> fn(bevy::bevy_ecs::system::Query<'a, 'b, &'c mut MyReplicatedComponent>) {bad_system}` to implement `IntoScheduleConfigs<Box<(dyn bevy::bevy_ecs::system::System<In = (), Out = ()> + 'static)>, _>`
+note: required by a bound in `bevy::bevy_app::App::add_systems`
+   --> /veritasium/crates/bevy_app/src/app.rs:324:23
+    |
+321 |     pub fn add_systems<M>(
+    |            ----------- required by a bound in this associated function
+...
+324 |         systems: impl IntoScheduleConfigs<ScheduleSystem, M>,
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `App::add_systems`
