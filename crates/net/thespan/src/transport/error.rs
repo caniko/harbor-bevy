@@ -20,6 +20,8 @@ pub enum TransportError {
     Transport(String),
     #[error("behaviour setup failed: {0}")]
     Behaviour(String),
+    #[error("reliable event queue full; network actor stopping")]
+    ReliableEventOverflow,
     #[error("oversized message kind={kind} peer={peer_id:?}: {observed_bytes} > {limit}")]
     OversizedMessage {
         peer_id: Option<PeerId>,

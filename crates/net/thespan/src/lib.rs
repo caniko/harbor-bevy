@@ -24,6 +24,7 @@
 
 pub mod actor;
 pub mod config;
+pub mod event_channel;
 pub mod handle;
 pub mod identity;
 pub mod session;
@@ -31,8 +32,11 @@ pub mod spawn;
 pub mod transport;
 
 // Re-exports for convenience
-pub use actor::commands::{GossipTopic, NetworkCommand, SendTarget};
+#[cfg(feature = "legacy-raw-codec")]
+pub use actor::commands::SendTarget;
+pub use actor::commands::{GossipTopic, NetworkCommand};
 pub use actor::events::{ActorErrorKind, ActorEvent};
+#[cfg(feature = "legacy-raw-codec")]
 pub use actor::network::BYE_MARKER;
 #[cfg(feature = "steam")]
 pub use config::SteamConfig;
@@ -43,12 +47,16 @@ pub use transport::{
     STATE_SYNC_MESSAGE_MAX_BYTES, TransportError, TransportMessageKind,
 };
 
-pub use handle::{CommandHandle, NETWORK_THREAD_PANICS_TOTAL, NetworkHandle, THESPAN_EVENT_DROPS};
+pub use event_channel::EventReceiver;
+pub use handle::{
+    CommandHandle, CommandSendError, NETWORK_THREAD_PANICS_TOTAL, NetworkHandle,
+    RemoteTellSendError, THESPAN_EVENT_DROPS, THESPAN_RELIABLE_OVERFLOWS,
+};
 pub use piying::remote::SwarmSender;
 pub use spawn::{
-    PreRunHook, ed25519_public_key_from_peer_id, spawn_network_actor,
-    spawn_network_actor_with_config, spawn_network_actor_with_hook,
-    spawn_network_actor_with_keypair,
+    PreRunHook, PreRunWithCleanup, TransportCleanup, ed25519_public_key_from_peer_id,
+    spawn_network_actor, spawn_network_actor_with_config, spawn_network_actor_with_hook,
+    spawn_network_actor_with_keypair, spawn_with_lifecycle,
 };
 
 pub use actor::behavior::{KeepAlivePeerTelemetry, KeepAliveTelemetryHandle};

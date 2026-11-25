@@ -4,7 +4,9 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::time::Duration;
 
 use bevy::prelude::*;
-use thespan::{ActorEvent, CommandHandle, GossipTopic, Multiaddr, NetworkCommand, PeerId};
+use thespan::{
+    CommandHandle, CommandSendError, EventReceiver, GossipTopic, Multiaddr, NetworkCommand, PeerId,
+};
 
 /// How often [`NetworkResource::shutdown_now`] wakes to look for the transport
 /// thread's exit while draining events.
@@ -51,7 +53,7 @@ pub struct NetworkResource {
     /// Send commands to the actor (consumer -> Actor).
     pub command: CommandHandle,
     /// Receive events from the actor (Actor -> consumer).
-    pub event_rx: crossbeam_channel::Receiver<ActorEvent>,
+    pub event_rx: EventReceiver,
     /// Current connection state.
     pub state: TransportConnectionStatus,
     /// All currently connected peers.
@@ -66,7 +68,7 @@ pub struct NetworkResource {
     pub identity_keypair: Option<thespan::identity::Keypair>,
     /// Whether the underlying transport has `GossipSub` enabled.
     pub gossipsub_enabled: bool,
-    /// Sender for this resource's piying remote swarm.
+    /// Raw Piying sender (not backpressured). Use `command` for reliable tells.
     pub swarm_sender: thespan::SwarmSender,
     /// Shared keepalive telemetry handle owned by the transport thread.
     pub keep_alive_telemetry: thespan::KeepAliveTelemetryHandle,
@@ -158,9 +160,9 @@ impl KeepAliveTelemetry {
 }
 
 impl NetworkResource {
-    /// Send a command to the network actor.
-    pub fn send(&self, cmd: NetworkCommand) {
-        self.command.send(cmd);
+    /// Send without waiting. On overflow the command was not accepted.
+    pub fn send(&self, cmd: NetworkCommand) -> Result<(), CommandSendError> {
+        self.command.send(cmd)
     }
 
     /// Check if any peers are connected.
@@ -176,9 +178,9 @@ impl NetworkResource {
     /// Register a teardown drain for a bounded channel fed by the network
     /// thread (e.g. the session event channel).
     ///
-    /// [`shutdown_now`](Self::shutdown_now) keeps calling the callback while
-    /// the transport thread exits, so blocking producers never stall on a full
-    /// channel that nothing consumes any more.
+    /// [`shutdown_now`](Self::shutdown_now) runs the callback before stopping
+    /// the transport actor, then again while its thread exits, so blocking
+    /// producers never stall on a full channel.
     pub fn register_shutdown_drain(&mut self, drain: impl Fn() + Send + Sync + 'static) {
         self.shutdown_drains.add(drain);
     }
@@ -188,9 +190,15 @@ impl NetworkResource {
     /// Normally this runs from `Drop`, but shutdown observers call it explicitly
     /// before process exit so transport resources are released synchronously.
     pub fn shutdown_now(&mut self) {
+        let Some(handle) = self.thread_handle.take() else {
+            return;
+        };
+        // These callbacks only drain channels; runtime-owned registrations use
+        // the transport lifecycle hook, including on independent actor exit.
+        self.shutdown_drains.run();
         // Kill the piying NetworkActor. This aborts its task, which makes
-        // `prepared.run().await` return on the background thread. The tokio
-        // runtime and libp2p swarm are then dropped, and the thread exits.
+        // `prepared.run().await` return on the background thread. Lifecycle
+        // cleanup runs there before the Tokio runtime drops.
         self.command.kill();
 
         // Keep consuming events while the background thread winds down.
@@ -202,21 +210,20 @@ impl NetworkResource {
         // minutes and `join_network_thread` (test teardown, process exit)
         // appears hung. These events are discarded: the Bevy consumer is
         // already gone.
-        self.shutdown_drains.run();
         // Bounded like `join_network_thread`: a wedged thread must not turn
         // the drain into the infinite wait the join deadline exists to stop.
-        if let Some(handle) = self.thread_handle.as_ref() {
-            let deadline = std::time::Instant::now() + Duration::from_secs(5);
-            drain_events_until(&self.event_rx, &self.shutdown_drains, || {
-                handle.is_finished() || std::time::Instant::now() >= deadline
-            });
-        }
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        drain_events_until(
+            || {
+                let _ = self.event_rx.recv_timeout(DRAIN_POLL_INTERVAL);
+            },
+            &self.shutdown_drains,
+            || handle.is_finished() || std::time::Instant::now() >= deadline,
+        );
 
         // Wait for the background thread to fully exit. This guarantees the
         // libp2p swarm and transport sockets are torn down before process exit.
-        if let Some(handle) = self.thread_handle.take() {
-            thespan::handle::join_network_thread(handle);
-        }
+        thespan::handle::join_network_thread(handle);
     }
 }
 
@@ -232,13 +239,13 @@ impl Drop for NetworkResource {
 /// Teardown-only: every event is discarded, but consuming them keeps the
 /// actors' bounded `send_timeout` pushes from stalling on a full channel.
 fn drain_events_until(
-    event_rx: &crossbeam_channel::Receiver<ActorEvent>,
+    mut poll: impl FnMut(),
     shutdown_drains: &ShutdownDrains,
     is_finished: impl Fn() -> bool,
 ) {
     while !is_finished() {
         shutdown_drains.run();
-        let _ = event_rx.recv_timeout(DRAIN_POLL_INTERVAL);
+        poll();
     }
 }
 
@@ -263,10 +270,17 @@ pub struct ListenStartedEvent {
     pub addr: thespan::Multiaddr,
 }
 
+/// A remote actor rejected a tell, or its outbound request failed.
+#[derive(Event, Debug, Clone)]
+pub struct RemoteSendFailedEvent {
+    pub peer_id: PeerId,
+    pub error: String,
+}
+
 /// Bevy event triggered when a `GossipSub` message is received.
 #[derive(Event, Debug, Clone)]
 pub struct RawGossipMessageEvent {
-    /// The topic the message was published to.
+    /// The application topic name, without the session suffix.
     pub topic: GossipTopic,
     /// The peer who originally published the message (if signed).
     pub source: Option<PeerId>,
@@ -288,6 +302,7 @@ pub struct GossipSubscribeFailedEvent {
 }
 
 /// Raw request-response message received from the network actor.
+#[cfg(feature = "legacy-raw-codec")]
 #[derive(Event, Debug, Clone)]
 pub struct RawMessageEvent {
     pub from: PeerId,
@@ -298,6 +313,7 @@ pub struct RawMessageEvent {
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
+    use thespan::ActorEvent;
 
     /// Regression: teardown used to join the transport thread while its session
     /// actors were blocked pushing into a full event channel, so `Drop` hung
@@ -331,7 +347,13 @@ mod tests {
             }
         });
 
-        drain_events_until(&rx, &drains, || sender.is_finished());
+        drain_events_until(
+            || {
+                let _ = rx.recv_timeout(DRAIN_POLL_INTERVAL);
+            },
+            &drains,
+            || sender.is_finished(),
+        );
         sender.join().expect("sender thread joins");
 
         assert_eq!(

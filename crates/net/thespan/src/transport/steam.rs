@@ -8,13 +8,13 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use libp2p::SwarmBuilder;
 use libp2p::Transport as _;
 use libp2p::core::ConnectedPoint;
 use libp2p::core::muxing::StreamMuxerBox;
 use libp2p::core::upgrade::{InboundConnectionUpgrade, OutboundConnectionUpgrade};
 use libp2p::swarm::Swarm;
 use libp2p::swarm::behaviour::toggle::Toggle;
-use libp2p::{StreamProtocol, SwarmBuilder};
 
 use crate::actor::behavior::{ThespanBehaviour, build_behaviour};
 use crate::config::ThespanConfig;
@@ -39,10 +39,6 @@ pub fn build_steam_swarm_with_keypair(
     dial_virtual_port: Option<i32>,
     thespan_config: &ThespanConfig,
 ) -> Result<Swarm<ThespanBehaviour>, SteamSwarmError> {
-    let protocol_name = StreamProtocol::try_from_owned(crate::session::applied_protocol(
-        &thespan_config.steam_protocol(),
-    ))
-    .map_err(|error| SteamSwarmError::Behaviour(error.to_string()))?;
     let local_peer_id = keypair.public().to_peer_id();
 
     let sockets = Arc::new(networking_sockets);
@@ -101,7 +97,8 @@ pub fn build_steam_swarm_with_keypair(
         .with_behaviour(|key: &libp2p::identity::Keypair| {
             build_behaviour(
                 key,
-                protocol_name.clone(),
+                #[cfg(feature = "legacy-raw-codec")]
+                &thespan_config.steam_protocol(),
                 thespan_config,
                 false,
                 libp2p::ping::Config::new()

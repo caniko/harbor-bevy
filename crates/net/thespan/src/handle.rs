@@ -1,17 +1,41 @@
 //! Network handle: channel endpoints for communicating with the network actor.
 
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use libp2p::PeerId;
-use piying::actor::ActorRef;
+use piying::actor::{ActorId, ActorRef};
+use piying::error::SendError;
+use piying::remote::{RemoteActor, RemoteMessage, codec::Encode};
+use tokio::sync::Semaphore;
 
-use crate::actor::commands::NetworkCommand;
-use crate::actor::events::ActorEvent;
+use crate::actor::commands::{NetworkCommand, RemoteTell};
 use crate::actor::network::NetworkActor;
+use crate::event_channel::EventReceiver;
 
+/// Telemetry events evicted to make room for newer ones.
 pub static THESPAN_EVENT_DROPS: AtomicU64 = AtomicU64::new(0);
+/// Full reliable event queues and rejected commands from full command mailboxes.
+pub static THESPAN_RELIABLE_OVERFLOWS: AtomicU64 = AtomicU64::new(0);
 pub static NETWORK_THREAD_PANICS_TOTAL: AtomicU64 = AtomicU64::new(0);
+
+/// A nonblocking command send failure, including the original command on overflow.
+pub type CommandSendError = SendError<NetworkCommand>;
+
+// ponytail: a single per-transport window bounds both queued and in-flight tells;
+// partition by peer only if one slow peer must not consume the shared budget.
+pub(crate) const RELIABLE_TELL_CAPACITY: usize = 64;
+
+#[derive(Debug, thiserror::Error)]
+pub enum RemoteTellSendError {
+    #[error("Reliable outbound window or command mailbox is full")]
+    Full,
+    #[error("Network actor is closed")]
+    Closed,
+    #[error("Could not encode the remote message: {0}")]
+    Encode(piying::error::RemoteSendError),
+}
 
 /// Cloneable handle for sending commands to the network actor.
 ///
@@ -21,19 +45,57 @@ pub static NETWORK_THREAD_PANICS_TOTAL: AtomicU64 = AtomicU64::new(0);
 /// When the last clone is dropped, the network actor is killed, which
 /// stops the background thread and frees the libp2p swarm + tokio runtime.
 #[derive(Clone)]
-pub struct CommandHandle(ActorRef<NetworkActor>);
+pub struct CommandHandle(ActorRef<NetworkActor>, Arc<Semaphore>);
 
 impl CommandHandle {
     /// Create a command handle backed by a piying actor.
     pub(crate) fn from_piying(actor_ref: ActorRef<NetworkActor>) -> Self {
-        Self(actor_ref)
+        Self(actor_ref, Arc::new(Semaphore::new(RELIABLE_TELL_CAPACITY)))
     }
 
-    /// Send a command to the network actor (non-blocking).
-    pub fn send(&self, cmd: NetworkCommand) {
-        if let Err(e) = self.0.tell(cmd).try_send() {
-            log::warn!("Failed to send NetworkCommand to actor: {e}");
+    /// Send without waiting. On `MailboxFull` the command was not accepted.
+    pub fn send(&self, cmd: NetworkCommand) -> Result<(), CommandSendError> {
+        let result = self.0.tell(cmd).try_send();
+        if matches!(result, Err(SendError::MailboxFull(_))) {
+            THESPAN_RELIABLE_OVERFLOWS.fetch_add(1, Ordering::Relaxed);
         }
+        result
+    }
+
+    /// Submit a reliable tell without waiting. Acceptance reserves space until
+    /// Piying reports a remote acknowledgement or an [`crate::ActorEvent::RemoteSendFailed`].
+    pub fn send_remote_tell<A: RemoteActor + RemoteMessage<M>, M: Encode>(
+        &self,
+        peer_id: PeerId,
+        sequence: u64,
+        message: &M,
+    ) -> Result<(), RemoteTellSendError> {
+        if !self.0.is_alive() {
+            return Err(RemoteTellSendError::Closed);
+        }
+        let permit = Arc::clone(&self.1).try_acquire_owned().map_err(|_| {
+            THESPAN_RELIABLE_OVERFLOWS.fetch_add(1, Ordering::Relaxed);
+            RemoteTellSendError::Full
+        })?;
+        let payload = message.encode().map_err(|error| {
+            RemoteTellSendError::Encode(piying::error::RemoteSendError::SerializeMessage(error))
+        })?;
+        self.0
+            .tell(RemoteTell {
+                actor_id: ActorId::new_with_peer_id(sequence, peer_id),
+                actor_type: <A as RemoteActor>::REMOTE_ID,
+                message_type: <A as RemoteMessage<M>>::REMOTE_ID,
+                payload,
+                permit,
+            })
+            .try_send()
+            .map_err(|error| match error {
+                SendError::MailboxFull(_) => {
+                    THESPAN_RELIABLE_OVERFLOWS.fetch_add(1, Ordering::Relaxed);
+                    RemoteTellSendError::Full
+                }
+                _ => RemoteTellSendError::Closed,
+            })
     }
 
     /// Kill the network actor immediately.
@@ -54,7 +116,7 @@ pub struct NetworkHandle {
     /// Cloneable command sender.
     pub command: CommandHandle,
     /// Receive events from the actor.
-    pub event_rx: crossbeam_channel::Receiver<ActorEvent>,
+    pub event_rx: EventReceiver,
     /// Our local libp2p `PeerId`.
     pub local_peer_id: PeerId,
     /// Local libp2p Ed25519 public key bytes for application-level signatures.
@@ -63,7 +125,8 @@ pub struct NetworkHandle {
     pub identity_keypair: Option<libp2p::identity::Keypair>,
     /// Whether this actor was configured with `GossipSub` support.
     pub gossipsub_enabled: bool,
-    /// Sender for this handle's piying remote swarm.
+    /// Raw sender for this handle's piying remote swarm (not backpressured).
+    /// For reliable tells use [`CommandHandle::send_remote_tell`].
     ///
     /// Batch tests can run several network actors in one process. Callers must
     /// use this sender when constructing direct remote refs so messages are
@@ -81,7 +144,7 @@ pub struct NetworkHandle {
 
 pub struct NetworkHandleParts {
     pub command: CommandHandle,
-    pub event_rx: crossbeam_channel::Receiver<ActorEvent>,
+    pub event_rx: EventReceiver,
     pub local_peer_id: PeerId,
     pub identity_public_key: Option<[u8; 32]>,
     pub identity_keypair: Option<libp2p::identity::Keypair>,
@@ -93,12 +156,16 @@ pub struct NetworkHandleParts {
 
 impl NetworkHandle {
     /// Send a command to the network actor.
-    pub fn send(&self, cmd: NetworkCommand) {
-        self.command.send(cmd);
+    pub fn send(&self, cmd: NetworkCommand) -> Result<(), CommandSendError> {
+        self.command.send(cmd)
     }
 
     pub fn event_drops_total() -> u64 {
         THESPAN_EVENT_DROPS.load(Ordering::Relaxed)
+    }
+
+    pub fn reliable_overflows_total() -> u64 {
+        THESPAN_RELIABLE_OVERFLOWS.load(Ordering::Relaxed)
     }
 
     pub fn network_thread_panics_total() -> u64 {
@@ -209,7 +276,6 @@ pub fn test_join_panicking_thread() -> u64 {
 
 impl Drop for NetworkHandle {
     fn drop(&mut self) {
-        self.command.send(NetworkCommand::Shutdown);
         self.command.kill();
         if let Some(handle) = self.thread_handle.take() {
             join_network_thread(handle);

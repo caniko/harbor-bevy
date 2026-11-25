@@ -8,6 +8,8 @@ use super::commands::GossipTopic;
 pub enum ActorErrorKind {
     ListenFailed,
     DialFailed,
+    /// The reliable event queue filled and the actor is shutting down.
+    ReliableEventOverflow,
 }
 
 /// Events that the background network actor pushes to the consumer.
@@ -16,6 +18,7 @@ pub enum ActorErrorKind {
 #[derive(Debug)]
 pub enum ActorEvent {
     /// Received a message from a peer.
+    #[cfg(feature = "legacy-raw-codec")]
     MessageReceived {
         from: PeerId,
         /// Raw bytes of the `WireMessage`.
@@ -34,6 +37,9 @@ pub enum ActorEvent {
     /// An error occurred in the network actor.
     Error { kind: ActorErrorKind, error: String },
 
+    /// Piying rejected a tell or could not deliver an outbound request.
+    RemoteSendFailed { peer_id: PeerId, error: String },
+
     /// An inbound message exceeded its transport-level size budget and was dropped.
     OversizedMessageDropped {
         peer_id: PeerId,
@@ -45,7 +51,7 @@ pub enum ActorEvent {
 
     /// Received a message from a `GossipSub` topic.
     GossipReceived {
-        /// The topic the message was published to.
+        /// The application topic name, without the session suffix.
         topic: GossipTopic,
         /// The peer who originally published the message.
         source: Option<PeerId>,

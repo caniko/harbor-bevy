@@ -24,7 +24,6 @@ pub fn build_lan_swarm_with_keypair(
     thespan_config: &ThespanConfig,
 ) -> Result<Swarm<ThespanBehaviour>, TransportError> {
     let gossipsub_enabled = config.gossipsub_enabled;
-    let protocol_name = crate::session::stream_protocol(&config.protocol);
 
     let swarm = SwarmBuilder::with_existing_identity(keypair)
         .with_tokio()
@@ -40,7 +39,8 @@ pub fn build_lan_swarm_with_keypair(
             // if protocol negotiation doesn't complete (causing 25s disconnect).
             build_behaviour(
                 key,
-                protocol_name.clone(),
+                #[cfg(feature = "legacy-raw-codec")]
+                &config.protocol,
                 thespan_config,
                 gossipsub_enabled,
                 libp2p::ping::Config::new()

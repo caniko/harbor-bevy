@@ -14,13 +14,16 @@ use veritasium_wire::PeerIdBytes;
 // Re-exports from thespan (transport layer)
 // ---------------------------------------------------------------------------
 
+#[cfg(feature = "legacy-raw-codec")]
+pub use thespan::SendTarget;
 #[cfg(feature = "steam")]
 pub use thespan::SteamConfig;
 pub use thespan::{
-    CommandHandle, DIRECT_SESSION_MAX_BYTES, GAMEPLAY_MESSAGE_MAX_BYTES,
-    GOSSIPSUB_MAX_TRANSMIT_SIZE, InternetConfig, LanConfig, Multiaddr, NetworkCommand, PreRunHook,
-    STATE_SYNC_MESSAGE_MAX_BYTES, SendTarget, SwarmSender, ThespanConfig, TransportError,
-    TransportMessageKind, TransportType, WebRtcConfig, ed25519_public_key_from_peer_id, identity,
+    CommandHandle, CommandSendError, DIRECT_SESSION_MAX_BYTES, EventReceiver,
+    GAMEPLAY_MESSAGE_MAX_BYTES, GOSSIPSUB_MAX_TRANSMIT_SIZE, InternetConfig, LanConfig, Multiaddr,
+    NetworkCommand, PreRunHook, PreRunWithCleanup, STATE_SYNC_MESSAGE_MAX_BYTES, SwarmSender,
+    ThespanConfig, TransportError, TransportMessageKind, TransportType, WebRtcConfig,
+    ed25519_public_key_from_peer_id, identity,
 };
 
 // Re-export libp2p PeerId for public API
@@ -46,10 +49,12 @@ pub struct FromNetwork<T: Event + Clone> {
 }
 
 // Re-exports from resource
+#[cfg(feature = "legacy-raw-codec")]
+pub use resource::RawMessageEvent;
 pub use resource::{
     GossipSubscribeFailedEvent, GossipSubscribedEvent, KeepAlivePeerTelemetry, KeepAliveTelemetry,
     ListenStartedEvent, NetworkResource, OversizedMessageDrops, PeerConnectedEvent,
-    PeerDisconnectedEvent, RawGossipMessageEvent, RawMessageEvent, ShutdownDrains,
+    PeerDisconnectedEvent, RawGossipMessageEvent, RemoteSendFailedEvent, ShutdownDrains,
     TransportConnectionStatus,
 };
 
@@ -133,6 +138,17 @@ pub fn spawn_network_actor_with_config(
         thespan::spawn_network_actor_with_config(config, thespan_config, keypair, pre_run_hook)?
             .into_parts();
     Ok(network_resource_from_parts(handle))
+}
+
+/// Spawn with cleanup awaited on the transport thread before its runtime exits.
+pub fn spawn_with_lifecycle(
+    config: TransportType,
+    thespan_config: ThespanConfig,
+    keypair: Option<identity::Keypair>,
+    pre_run_hook: Option<PreRunWithCleanup>,
+) -> Result<NetworkResource, TransportError> {
+    thespan::spawn_with_lifecycle(config, thespan_config, keypair, pre_run_hook)
+        .map(|handle| network_resource_from_parts(handle.into_parts()))
 }
 
 fn network_resource_from_parts(handle: thespan::handle::NetworkHandleParts) -> NetworkResource {

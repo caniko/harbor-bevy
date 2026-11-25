@@ -5,14 +5,14 @@
 //! Requires:
 //! - Steam client running and logged in
 //! - App ID 480 (Valve Spacewar)
-//! - The `steam` feature enabled on thespan
+//! - The `steam` and `legacy-raw-codec` features enabled on thespan
 //!
 //! Run with:
 //! ```sh
-//! cargo test -p thespan --features steam --test steam_integration -- --ignored
+//! cargo test -p thespan --features steam,legacy-raw-codec --test steam_integration -- --ignored
 //! ```
 
-#![cfg(feature = "steam")]
+#![cfg(all(feature = "steam", feature = "legacy-raw-codec"))]
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -152,10 +152,6 @@ fn steam_actors_connect_via_loopback() {
 
     assert!(a_connected, "Actor A should see PeerConnected within 10s");
     assert!(b_connected, "Actor B should see PeerConnected within 10s");
-
-    // Cleanup
-    handle_a.send(thespan::actor::commands::NetworkCommand::Shutdown);
-    handle_b.send(thespan::actor::commands::NetworkCommand::Shutdown);
 }
 
 /// Test that connected actors can exchange messages via request_response.
@@ -206,10 +202,12 @@ fn steam_actors_exchange_messages() {
 
     // A sends a message to B
     let payload = b"hello from A".to_vec();
-    handle_a.send(thespan::actor::commands::NetworkCommand::SendMessage {
-        payload: payload.clone(),
-        target: thespan::actor::commands::SendTarget::Peer(b_peer_id),
-    });
+    handle_a
+        .send(thespan::actor::commands::NetworkCommand::SendMessage {
+            payload: payload.clone(),
+            target: thespan::actor::commands::SendTarget::Peer(b_peer_id),
+        })
+        .expect("queue message from A");
 
     // B should receive it
     let received = wait_for_message(&handle_b, Duration::from_secs(5));
@@ -221,10 +219,12 @@ fn steam_actors_exchange_messages() {
 
     // B sends back to A
     let reply = b"hello from B".to_vec();
-    handle_b.send(thespan::actor::commands::NetworkCommand::SendMessage {
-        payload: reply.clone(),
-        target: thespan::actor::commands::SendTarget::Peer(handle_a.local_peer_id),
-    });
+    handle_b
+        .send(thespan::actor::commands::NetworkCommand::SendMessage {
+            payload: reply.clone(),
+            target: thespan::actor::commands::SendTarget::Peer(handle_a.local_peer_id),
+        })
+        .expect("queue reply from B");
 
     let received = wait_for_message(&handle_a, Duration::from_secs(5));
     assert_eq!(
@@ -232,10 +232,6 @@ fn steam_actors_exchange_messages() {
         Some(reply.as_slice()),
         "A should receive the reply from B"
     );
-
-    // Cleanup
-    handle_a.send(thespan::actor::commands::NetworkCommand::Shutdown);
-    handle_b.send(thespan::actor::commands::NetworkCommand::Shutdown);
 }
 
 /// Test graceful disconnect over Steam transport.
@@ -278,7 +274,9 @@ fn steam_graceful_disconnect() {
     assert!(wait_for_peer_connected(&handle_b, Duration::from_secs(10)));
 
     // A gracefully disconnects
-    handle_a.send(thespan::actor::commands::NetworkCommand::GracefulDisconnect { peer_id: None });
+    handle_a
+        .send(thespan::actor::commands::NetworkCommand::GracefulDisconnect { peer_id: None })
+        .expect("queue disconnect");
 
     // B should see PeerDisconnected (may also receive the BYE marker message first).
     // Steam connection teardown over loopback can be slow — use a generous timeout.
@@ -300,9 +298,6 @@ fn steam_graceful_disconnect() {
         b_saw_disconnect,
         "B should see PeerDisconnected after A's graceful disconnect"
     );
-
-    handle_a.send(thespan::actor::commands::NetworkCommand::Shutdown);
-    handle_b.send(thespan::actor::commands::NetworkCommand::Shutdown);
 }
 
 /// Send 10 messages in rapid succession A→B, verify all arrive.
@@ -353,10 +348,12 @@ fn steam_actors_exchange_multiple_messages() {
     for i in 0..message_count {
         let payload = format!("rapid message #{i}").into_bytes();
         expected.push(payload.clone());
-        handle_a.send(thespan::actor::commands::NetworkCommand::SendMessage {
-            payload,
-            target: thespan::actor::commands::SendTarget::Peer(b_peer_id),
-        });
+        handle_a
+            .send(thespan::actor::commands::NetworkCommand::SendMessage {
+                payload,
+                target: thespan::actor::commands::SendTarget::Peer(b_peer_id),
+            })
+            .expect("queue message from A");
     }
 
     // Collect all 10 messages on B (with generous timeout)
@@ -387,8 +384,4 @@ fn steam_actors_exchange_multiple_messages() {
             String::from_utf8_lossy(exp)
         );
     }
-
-    // Cleanup
-    handle_a.send(thespan::actor::commands::NetworkCommand::Shutdown);
-    handle_b.send(thespan::actor::commands::NetworkCommand::Shutdown);
 }

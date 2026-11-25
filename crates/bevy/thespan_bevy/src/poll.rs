@@ -2,12 +2,14 @@
 
 use bevy::prelude::*;
 
-use thespan::ActorEvent;
+use thespan::{ActorErrorKind, ActorEvent};
 
+#[cfg(feature = "legacy-raw-codec")]
+use crate::resource::RawMessageEvent;
 use crate::resource::{
     GossipSubscribeFailedEvent, GossipSubscribedEvent, KeepAliveTelemetry, ListenStartedEvent,
     NetworkResource, OversizedMessageDrops, PeerConnectedEvent, PeerDisconnectedEvent,
-    RawGossipMessageEvent, RawMessageEvent, TransportConnectionStatus,
+    RawGossipMessageEvent, RemoteSendFailedEvent, TransportConnectionStatus,
 };
 
 /// Drains all pending [`ActorEvent`]s from the network actor and dispatches them.
@@ -24,6 +26,7 @@ pub fn poll_network_events(
 ) {
     while let Ok(event) = net.event_rx.try_recv() {
         match event {
+            #[cfg(feature = "legacy-raw-codec")]
             ActorEvent::MessageReceived { from, payload } => {
                 debug!("Received raw message ({} bytes) from {from}", payload.len());
                 commands.trigger(RawMessageEvent { from, payload });
@@ -79,6 +82,23 @@ pub fn poll_network_events(
             }
             ActorEvent::Error { kind, error } => {
                 error!(?kind, "Network actor error: {error}");
+                if kind == ActorErrorKind::ReliableEventOverflow {
+                    let peers = std::mem::take(&mut net.peers);
+                    net.peer_addrs.clear();
+                    net.listen_addr = None;
+                    net.state = TransportConnectionStatus::Disconnected;
+                    net.keep_alive_telemetry = Default::default();
+                    keep_alive.peers.clear();
+                    for peer_id in peers {
+                        commands.trigger(PeerDisconnectedEvent {
+                            peer_id,
+                            reason: error.clone(),
+                        });
+                    }
+                }
+            }
+            ActorEvent::RemoteSendFailed { peer_id, error } => {
+                commands.trigger(RemoteSendFailedEvent { peer_id, error });
             }
             ActorEvent::OversizedMessageDropped {
                 peer_id,

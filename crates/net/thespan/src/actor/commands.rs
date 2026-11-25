@@ -4,6 +4,16 @@ use std::fmt;
 use std::ops::Deref;
 
 use libp2p::{Multiaddr, PeerId};
+use piying::actor::ActorId;
+use tokio::sync::OwnedSemaphorePermit;
+
+pub(crate) struct RemoteTell {
+    pub actor_id: ActorId,
+    pub actor_type: &'static str,
+    pub message_type: &'static str,
+    pub payload: Vec<u8>,
+    pub permit: OwnedSemaphorePermit,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct GossipTopic(String);
@@ -47,6 +57,7 @@ impl PartialEq<&str> for GossipTopic {
 }
 
 /// Target for outgoing messages.
+#[cfg(feature = "legacy-raw-codec")]
 #[derive(Debug, Clone, Copy)]
 pub enum SendTarget {
     /// Send to a specific connected peer.
@@ -65,6 +76,7 @@ pub enum NetworkCommand {
     Dial { peer_id: PeerId, addr: Multiaddr },
 
     /// Send a serialized message to one or all connected peers.
+    #[cfg(feature = "legacy-raw-codec")]
     SendMessage {
         /// Serialized `WireMessage` bytes.
         payload: Vec<u8>,
@@ -75,8 +87,7 @@ pub enum NetworkCommand {
     /// Disconnect from a specific peer, or all peers if `None`.
     Disconnect { peer_id: Option<PeerId> },
 
-    /// Send a graceful disconnect marker ("BYE") before closing.
-    /// The remote peer can distinguish intentional disconnects from drops.
+    /// Disconnect, sending the legacy "BYE" marker when the raw codec is enabled.
     GracefulDisconnect { peer_id: Option<PeerId> },
 
     /// Shut down the network actor and its libp2p swarm.

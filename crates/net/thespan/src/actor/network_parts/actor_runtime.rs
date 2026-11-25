@@ -1,9 +1,11 @@
 // intentionally oversize: cohesive order-sensitive builder or driver flow; split requires semantic extraction.
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::time::Duration;
 
 use futures::StreamExt;
 use libp2p::multiaddr::Protocol;
+#[cfg(feature = "legacy-raw-codec")]
 use libp2p::request_response;
 use libp2p::swarm::SwarmEvent;
 use libp2p::swarm::dial_opts::{DialOpts, PeerCondition};
@@ -14,13 +16,18 @@ use piying::actor::{ActorRef, WeakActorRef};
 use piying::error::ActorStopReason;
 use piying::mailbox::{MailboxReceiver, Signal};
 use piying::message::{Context, Message};
+use piying::remote::messaging::{Event as RemoteEvent, RequestId};
+use tokio::sync::OwnedSemaphorePermit;
 
 use crate::actor::behavior::{KeepAliveTelemetryHandle, ThespanBehaviour, ThespanBehaviourEvent};
-use crate::actor::commands::{NetworkCommand, SendTarget};
+#[cfg(feature = "legacy-raw-codec")]
+use crate::actor::commands::SendTarget;
+use crate::actor::commands::{NetworkCommand, RemoteTell};
 use crate::actor::events::{ActorErrorKind, ActorEvent};
-use crate::handle::THESPAN_EVENT_DROPS;
-use crate::spawn::THESPAN_EVENT_CHANNEL_CAPACITY;
-use crate::transport::{TransportError, TransportMessageKind};
+use crate::event_channel::EventSender;
+use crate::transport::TransportError;
+#[cfg(feature = "legacy-raw-codec")]
+use crate::transport::TransportMessageKind;
 
 pub type NetworkBootstrapSender = std::sync::mpsc::SyncSender<
     Result<(piying::remote::SwarmSender, KeepAliveTelemetryHandle), TransportError>,
@@ -28,6 +35,7 @@ pub type NetworkBootstrapSender = std::sync::mpsc::SyncSender<
 
 /// Well-known marker payload sent during graceful disconnect.
 /// Recognized by the receiver to distinguish intentional disconnects from drops.
+#[cfg(feature = "legacy-raw-codec")]
 pub const BYE_MARKER: &[u8] = b"BYE";
 const INTERNET_RELAY_READY_TIMEOUT: Duration = Duration::from_secs(15);
 const INTERNET_DIAL_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(15);
@@ -40,7 +48,7 @@ pub struct NetworkActorArgs {
     pub swarm: Swarm<ThespanBehaviour>,
     pub listen_addr: libp2p::Multiaddr,
     pub additional_listen_addrs: Vec<libp2p::Multiaddr>,
-    pub event_tx: crossbeam_channel::Sender<ActorEvent>,
+    pub event_tx: EventSender,
     pub bootstrap_tx: Option<NetworkBootstrapSender>,
     /// Transport infrastructure peers that must not surface as application peers.
     pub infrastructure_peers: HashSet<PeerId>,
@@ -50,16 +58,18 @@ pub struct NetworkActorArgs {
 }
 
 /// The main network actor. Owns the libp2p Swarm, receives commands via piying mailbox,
-/// and pushes events to the consumer via crossbeam channel.
+/// and pushes events to the consumer via bounded event lanes.
 pub struct NetworkActor {
     swarm: Swarm<ThespanBehaviour>,
-    event_tx: crossbeam_channel::Sender<ActorEvent>,
+    event_tx: EventSender,
     /// All currently connected peers.
     connected_peers: HashSet<PeerId>,
     /// Connected transport infrastructure peers, such as Circuit Relay servers.
     infrastructure_peers: HashSet<PeerId>,
     /// Peers for which libp2p identify has completed.
     identified_peers: HashSet<PeerId>,
+    remote_tells: HashMap<RequestId, OwnedSemaphorePermit>,
+    #[cfg(feature = "legacy-raw-codec")]
     oversized_message_drops: HashMap<PeerId, u64>,
 }
 
@@ -67,7 +77,10 @@ impl Actor for NetworkActor {
     type Args = NetworkActorArgs;
     type Error = TransportError;
 
-    async fn on_start(args: Self::Args, _actor_ref: ActorRef<Self>) -> Result<Self, Self::Error> {
+    async fn on_start(
+        mut args: Self::Args,
+        _actor_ref: ActorRef<Self>,
+    ) -> Result<Self, Self::Error> {
         let mut swarm = args.swarm;
 
         // Initialize piying's global ActorSwarm so remote actors can send/receive.
@@ -81,7 +94,7 @@ impl Actor for NetworkActor {
                 addr: args.listen_addr,
                 message: e.to_string(),
             };
-            let _ = args.event_tx.try_send(ActorEvent::Error {
+            args.event_tx.push(ActorEvent::Error {
                 kind: ActorErrorKind::ListenFailed,
                 error: err.to_string(),
             });
@@ -111,12 +124,19 @@ impl Actor for NetworkActor {
                         message: e.to_string(),
                     };
                     warn!("additional listen address failed: {err}");
-                    let _ = args.event_tx.try_send(ActorEvent::Error {
+                    args.event_tx.push(ActorEvent::Error {
                         kind: ActorErrorKind::ListenFailed,
                         error: err.to_string(),
                     });
                 }
             }
+        }
+
+        if args.event_tx.overflowed() {
+            if let Some(bootstrap_tx) = args.bootstrap_tx {
+                let _ = bootstrap_tx.send(Err(TransportError::ReliableEventOverflow));
+            }
+            return Err(TransportError::ReliableEventOverflow);
         }
 
         if let Some(bootstrap_tx) = args.bootstrap_tx {
@@ -131,6 +151,8 @@ impl Actor for NetworkActor {
             connected_peers: HashSet::new(),
             infrastructure_peers: args.infrastructure_peers,
             identified_peers: HashSet::new(),
+            remote_tells: HashMap::new(),
+            #[cfg(feature = "legacy-raw-codec")]
             oversized_message_drops: HashMap::new(),
         };
 
@@ -167,7 +189,7 @@ impl Actor for NetworkActor {
         _actor_ref: WeakActorRef<Self>,
         mailbox_rx: &mut MailboxReceiver<Self>,
     ) -> Option<Signal<Self>> {
-        loop {
+        while !self.event_tx.overflowed() {
             tokio::select! {
                 signal = mailbox_rx.recv() => {
                     return signal;
@@ -177,6 +199,7 @@ impl Actor for NetworkActor {
                 }
             }
         }
+        None
     }
 }
 
@@ -241,6 +264,7 @@ impl Message<NetworkCommand> for NetworkActor {
                     });
                 }
             }
+            #[cfg(feature = "legacy-raw-codec")]
             NetworkCommand::SendMessage { payload, target } => {
                 if payload.len() > 1200 {
                     warn!(
@@ -306,6 +330,7 @@ impl Message<NetworkCommand> for NetworkActor {
                 };
                 for pid in targets {
                     info!("Gracefully disconnecting from peer {pid}");
+                    #[cfg(feature = "legacy-raw-codec")]
                     let _ = self
                         .swarm
                         .behaviour_mut()
@@ -315,9 +340,7 @@ impl Message<NetworkCommand> for NetworkActor {
                 }
             }
             NetworkCommand::Shutdown => {
-                // piying handles shutdown via actor_ref.stop_gracefully().
-                // This variant is kept for the Steam transport path which
-                // still uses raw channels.
+                // Retained for compatibility; use CommandHandle::kill.
                 info!("Received Shutdown command (no-op for piying actor)");
             }
             NetworkCommand::Subscribe { topic } => {
@@ -368,6 +391,23 @@ impl Message<NetworkCommand> for NetworkActor {
                 }
             }
         }
+    }
+}
+
+impl Message<RemoteTell> for NetworkActor {
+    type Reply = ();
+
+    async fn handle(&mut self, cmd: RemoteTell, _: &mut Context<Self, Self::Reply>) {
+        // Hand off directly, bypassing Piying 0.1.3's unbounded SwarmSender.
+        let id = self.swarm.behaviour_mut().piying_remote.messaging.tell(
+            cmd.actor_id,
+            cmd.actor_type.into(),
+            cmd.message_type.into(),
+            cmd.payload,
+            None,
+            true,
+        );
+        self.remote_tells.insert(id, cmd.permit);
     }
 }
 
@@ -454,12 +494,14 @@ impl NetworkActor {
             }
 
             // --- Request-Response events ---
+            #[cfg(feature = "legacy-raw-codec")]
             SwarmEvent::Behaviour(ThespanBehaviourEvent::RequestResponse(rr_event)) => {
                 self.handle_request_response(rr_event);
             }
 
-            // --- piying remote events (actor messaging + registry) ---
-            // These are handled internally by piying; we just log for diagnostics.
+            SwarmEvent::Behaviour(ThespanBehaviourEvent::PiyingRemote(
+                piying::remote::Event::Messaging(event),
+            )) => self.handle_remote_event(event),
             SwarmEvent::Behaviour(ThespanBehaviourEvent::PiyingRemote(remote_event)) => {
                 debug!("piying remote event: {remote_event:?}");
             }
@@ -586,6 +628,56 @@ impl NetworkActor {
         }
     }
 
+    fn handle_remote_event(&mut self, event: RemoteEvent) {
+        let (peer_id, request_id, error) = match event {
+            RemoteEvent::TellResult {
+                peer,
+                request_id,
+                result,
+                ..
+            } => (
+                peer,
+                request_id,
+                result.err().map(|error| error.to_string()),
+            ),
+            RemoteEvent::OutboundFailure {
+                peer,
+                request_id,
+                error,
+                ..
+            } => (
+                peer,
+                RequestId::Outbound(request_id),
+                Some(error.to_string()),
+            ),
+            RemoteEvent::AskResult {
+                peer, request_id, ..
+            }
+            | RemoteEvent::LinkResult {
+                peer, request_id, ..
+            }
+            | RemoteEvent::UnlinkResult {
+                peer, request_id, ..
+            }
+            | RemoteEvent::SignalLinkDiedResult {
+                peer, request_id, ..
+            } if self.remote_tells.contains_key(&request_id) => (
+                peer,
+                request_id,
+                Some("unexpected response to remote tell".into()),
+            ),
+            _ => {
+                debug!("piying messaging event: {event:?}");
+                return;
+            }
+        };
+        self.remote_tells.remove(&request_id);
+        if let Some(error) = error {
+            self.push_event(ActorEvent::RemoteSendFailed { peer_id, error });
+        }
+    }
+
+    #[cfg(feature = "legacy-raw-codec")]
     fn handle_request_response(&mut self, event: request_response::Event<Vec<u8>, Vec<u8>>) {
         match event {
             request_response::Event::Message { peer, message, .. } => match message {
@@ -646,7 +738,10 @@ impl NetworkActor {
                 message_id: _,
                 message,
             } => {
-                let topic = message.topic.to_string();
+                let Some(topic) = crate::session::base_gossipsub_topic(message.topic.as_str())
+                else {
+                    return;
+                };
                 debug!(
                     "GossipSub message on topic {topic} from {:?} ({} bytes)",
                     message.source,
@@ -694,34 +789,19 @@ impl NetworkActor {
         }
     }
 
-    fn push_event(&self, event: ActorEvent) {
-        match self.event_tx.try_send(event) {
-            Ok(()) => {}
-            Err(crossbeam_channel::TrySendError::Full(_)) => {
-                let dropped =
-                    THESPAN_EVENT_DROPS.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
-                if dropped == 1 || dropped.is_multiple_of(1024) {
-                    tracing::warn!(
-                        target: "thespan::backpressure",
-                        capacity = THESPAN_EVENT_CHANNEL_CAPACITY,
-                        dropped,
-                        "thespan event channel full; dropping event"
-                    );
-                } else {
-                    tracing::debug!(
-                        target: "thespan::backpressure",
-                        capacity = THESPAN_EVENT_CHANNEL_CAPACITY,
-                        dropped,
-                        "thespan event channel full; dropping event"
-                    );
-                }
-            }
-            Err(crossbeam_channel::TrySendError::Disconnected(_)) => {
-                warn!("Failed to push ActorEvent: receiver dropped");
-            }
+    fn push_event(&mut self, event: ActorEvent) {
+        self.event_tx.push(event);
+    }
+
+    fn check_event_overflow(&self) -> Result<(), TransportError> {
+        if self.event_tx.overflowed() {
+            Err(TransportError::ReliableEventOverflow)
+        } else {
+            Ok(())
         }
     }
 
+    #[cfg(feature = "legacy-raw-codec")]
     fn drop_if_oversized_direct(&mut self, peer_id: PeerId, observed_bytes: usize) -> bool {
         let kind = TransportMessageKind::DirectSession;
         let limit = kind.max_bytes();
@@ -811,6 +891,7 @@ impl NetworkActor {
         tokio::pin!(timeout);
 
         loop {
+            self.check_event_overflow()?;
             if self.relay_ready(relay_peer) {
                 info!(
                     target: "transport::dial",
@@ -878,6 +959,7 @@ impl NetworkActor {
         tokio::pin!(timeout);
 
         loop {
+            self.check_event_overflow().map_err(|err| err.to_string())?;
             if self.swarm.is_connected(&peer_id) {
                 return Ok(());
             }
@@ -907,13 +989,18 @@ impl NetworkActor {
         }
     }
 
-    async fn wait_for_peer_or_delay(&mut self, peer_id: PeerId, delay: Duration) -> bool {
+    async fn wait_for_peer_or_delay(
+        &mut self,
+        peer_id: PeerId,
+        delay: Duration,
+    ) -> Result<bool, TransportError> {
         let timeout = tokio::time::sleep(delay);
         tokio::pin!(timeout);
 
         loop {
+            self.check_event_overflow()?;
             if self.swarm.is_connected(&peer_id) {
-                return true;
+                return Ok(true);
             }
 
             tokio::select! {
@@ -921,7 +1008,7 @@ impl NetworkActor {
                     self.handle_swarm_event(event);
                 }
                 _ = &mut timeout => {
-                    return self.swarm.is_connected(&peer_id);
+                    return Ok(self.swarm.is_connected(&peer_id));
                 }
             }
         }
@@ -936,6 +1023,7 @@ impl NetworkActor {
         let mut delay = crate::transport::libp2p_internet::INTERNET_DIAL_START_DELAY;
         let mut last_error = String::new();
         for attempt in 1..=crate::transport::libp2p_internet::INTERNET_DIAL_MAX_ATTEMPTS {
+            self.check_event_overflow()?;
             if self.swarm.is_connected(&peer_id) {
                 return Ok(());
             }
@@ -960,6 +1048,7 @@ impl NetworkActor {
                     last_error = e;
                 }
             }
+            self.check_event_overflow()?;
 
             if attempt == crate::transport::libp2p_internet::INTERNET_DIAL_MAX_ATTEMPTS {
                 break;
@@ -971,7 +1060,7 @@ impl NetworkActor {
                 "Dial attempt {attempt}/{} failed peer={peer_id} addr={addr}: {last_error}; retrying in {sleep_for:?}",
                 crate::transport::libp2p_internet::INTERNET_DIAL_MAX_ATTEMPTS
             );
-            if self.wait_for_peer_or_delay(peer_id, sleep_for).await {
+            if self.wait_for_peer_or_delay(peer_id, sleep_for).await? {
                 return Ok(());
             }
             delay = (delay * 2).min(crate::transport::libp2p_internet::INTERNET_DIAL_MAX_DELAY);

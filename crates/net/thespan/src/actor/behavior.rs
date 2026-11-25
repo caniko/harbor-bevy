@@ -2,7 +2,7 @@
 //! Composed libp2p `NetworkBehaviour`.
 //!
 //! Combines:
-//! - request-response (reliable raw messaging for backward compat)
+//! - opt-in request-response (legacy raw messaging)
 //! - piying remote (typed actor messaging + Kademlia registry)
 
 // `NetworkBehaviour`'s derive emits an unreachable `return` in its generated
@@ -17,9 +17,12 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
 
+#[cfg(feature = "legacy-raw-codec")]
 use async_trait::async_trait;
+#[cfg(feature = "legacy-raw-codec")]
 use futures::prelude::*;
 use libp2p::core::Endpoint;
+#[cfg(feature = "legacy-raw-codec")]
 use libp2p::request_response;
 use libp2p::swarm::behaviour::toggle::Toggle;
 use libp2p::swarm::{
@@ -41,13 +44,15 @@ const KEEPALIVE_TELEMETRY_LOCK_WARN_AFTER: Duration = Duration::from_secs(1);
 
 /// Codec that carries raw `Vec<u8>` payloads over substreams.
 ///
-/// Uses the stream-per-message model: reads until EOF, writes all bytes.
+/// Uses one length-prefixed message per stream.
 /// Each request-response exchange gets its own yamux substream.
+#[cfg(feature = "legacy-raw-codec")]
 #[derive(Debug, Clone, Copy)]
 pub struct RawCodec {
     max_size: u64,
 }
 
+#[cfg(feature = "legacy-raw-codec")]
 impl Default for RawCodec {
     fn default() -> Self {
         Self {
@@ -56,6 +61,7 @@ impl Default for RawCodec {
     }
 }
 
+#[cfg(feature = "legacy-raw-codec")]
 #[async_trait]
 impl request_response::Codec for RawCodec {
     type Protocol = libp2p::StreamProtocol;
@@ -113,6 +119,7 @@ impl request_response::Codec for RawCodec {
     }
 }
 
+#[cfg(feature = "legacy-raw-codec")]
 async fn read_length_prefixed<T>(io: &mut T, max_size: u64) -> io::Result<Vec<u8>>
 where
     T: AsyncRead + Unpin + Send,
@@ -132,6 +139,7 @@ where
     Ok(vec)
 }
 
+#[cfg(feature = "legacy-raw-codec")]
 async fn write_length_prefixed<T>(io: &mut T, data: &[u8], max_size: u64) -> io::Result<()>
 where
     T: AsyncWrite + Unpin + Send,
@@ -534,7 +542,7 @@ impl libp2p::swarm::ConnectionHandler for KeepAliveHandler {
 
 /// The composed libp2p `NetworkBehaviour`.
 ///
-/// - `request_response`: Reliable raw message exchange
+/// - `request_response`: Legacy raw message exchange (opt-in)
 /// - `piying_remote`: Typed remote actor messaging + Kademlia registry (rkyv codec)
 /// - `gossipsub`: Topic-based pub/sub
 /// - `ping`: Periodic keep-alive pings to prevent NAT/firewall connection drops
@@ -552,6 +560,7 @@ impl libp2p::swarm::ConnectionHandler for KeepAliveHandler {
 // delegate dispatch; the module-level allow above covers it.
 #[derive(NetworkBehaviour)]
 pub struct ThespanBehaviour {
+    #[cfg(feature = "legacy-raw-codec")]
     pub request_response: request_response::Behaviour<RawCodec>,
     pub piying_remote: piying::remote::Behaviour<piying::remote::codec::PiyingRkyvCodec>,
     pub gossipsub: Toggle<libp2p::gossipsub::Behaviour>,
@@ -564,7 +573,7 @@ pub struct ThespanBehaviour {
 
 pub(crate) fn build_behaviour(
     key: &libp2p::identity::Keypair,
-    protocol: StreamProtocol,
+    #[cfg(feature = "legacy-raw-codec")] raw_protocol: &str,
     thespan_config: &crate::ThespanConfig,
     gossipsub_enabled: bool,
     ping_config: libp2p::ping::Config,
@@ -572,8 +581,12 @@ pub(crate) fn build_behaviour(
     identify: Toggle<libp2p::identify::Behaviour>,
     dcutr: Toggle<libp2p::dcutr::Behaviour>,
 ) -> Result<ThespanBehaviour, Box<dyn std::error::Error + Send + Sync>> {
+    #[cfg(feature = "legacy-raw-codec")]
     let request_response = request_response::Behaviour::<RawCodec>::new(
-        [(protocol, request_response::ProtocolSupport::Full)],
+        [(
+            StreamProtocol::try_from_owned(crate::session::applied_protocol(raw_protocol))?,
+            request_response::ProtocolSupport::Full,
+        )],
         request_response::Config::default().with_request_timeout(Duration::from_secs(30)),
     );
 
@@ -584,7 +597,15 @@ pub(crate) fn build_behaviour(
         piying::remote::Behaviour::with_codec(key.public().to_peer_id(), messaging_config, codec);
 
     let gossipsub = if gossipsub_enabled {
-        let config = libp2p::gossipsub::ConfigBuilder::default()
+        let mut builder = libp2p::gossipsub::ConfigBuilder::default();
+        let base = "/meshsub/1.1.0";
+        let scoped = crate::session::applied_protocol(base);
+        if scoped != base {
+            // A custom ID replaces the entire protocol list. Leave the default
+            // list intact when unscoped to preserve wire compatibility.
+            builder.protocol_id(scoped, libp2p::gossipsub::Version::V1_1);
+        }
+        let config = builder
             .mesh_n_low(1)
             .mesh_n(1)
             .mesh_n_high(2)
@@ -612,6 +633,7 @@ pub(crate) fn build_behaviour(
     };
 
     Ok(ThespanBehaviour {
+        #[cfg(feature = "legacy-raw-codec")]
         request_response,
         piying_remote,
         gossipsub,

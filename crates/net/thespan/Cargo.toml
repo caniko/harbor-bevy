@@ -19,7 +19,6 @@ libp2p = { version = "0.56", default-features = false, features = [
     "quic",
     "tcp",
     "noise",
-    "request-response",
     "gossipsub",
     "ping",
     "identify",
@@ -38,7 +37,7 @@ sha2 = "0.11"
 
 # Async utilities (StreamExt for Swarm, AsyncRead/Write for Codec)
 futures = "0.3"
-async-trait = "0.1"
+async-trait = { version = "0.1", optional = true }
 
 # Cross-thread channels (Actor -> consumer)
 crossbeam-channel.workspace = true
@@ -62,13 +61,9 @@ libp2p-steam-transport = { version = "0.1.0", path = "../libp2p-steam-transport"
 default = []
 test-hooks = []
 steam = ["dep:libp2p-steam-transport"]
-# Test-only: when enabled, every libp2p protocol id and gossipsub topic
-# thespan advertises is suffixed with the value of `THESPAN_SESSION_ID` (if
-# set), keeping co-running test sessions on the same UDP port from
-# cross-connecting via shared protocol ids. Forwarded into the underlying piying
-# crate so its registry/messaging protocol ids are namespaced too.
-# Production builds leave this off and emit byte-identical wire identifiers
-# to the unsuffixed path.
+legacy-raw-codec = ["dep:async-trait", "libp2p/request-response"]
+# Scope application wire identifiers and topics to THESPAN_SESSION_ID.
+# With this feature off or the ID unset, identifiers are unchanged.
 session-isolation = ["piying/session-isolation"]
 
 [dev-dependencies]

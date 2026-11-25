@@ -2,6 +2,7 @@
 
 use std::time::{Duration, Instant};
 
+#[cfg(feature = "legacy-raw-codec")]
 use thespan::actor::commands::{NetworkCommand, SendTarget};
 use thespan::actor::events::ActorEvent;
 use thespan::config::{TransportType, WebRtcConfig};
@@ -30,7 +31,6 @@ impl Drop for ActorGuard {
             return;
         };
 
-        handle.send(NetworkCommand::Shutdown);
         handle.command.kill();
     }
 }
@@ -73,6 +73,7 @@ fn wait_for_peer_connected(handle: &NetworkHandle, timeout: Duration) -> PeerId 
     panic!("timed out waiting for PeerConnected");
 }
 
+#[cfg(feature = "legacy-raw-codec")]
 fn wait_for_message(handle: &NetworkHandle, timeout: Duration) -> Vec<u8> {
     let deadline = Instant::now() + timeout;
     while Instant::now() < deadline {
@@ -100,7 +101,7 @@ fn loopback_addr(listen_addr: Multiaddr) -> Multiaddr {
 }
 
 #[test]
-fn webrtc_direct_actors_connect_and_exchange_messages() {
+fn webrtc_direct_actors_connect() {
     let _ = env_logger::builder().is_test(true).try_init();
 
     let peer_a = ActorGuard::new(
@@ -142,14 +143,19 @@ fn webrtc_direct_actors_connect_and_exchange_messages() {
     assert_eq!(peer_a_id, peer_a.handle().local_peer_id);
     assert_eq!(peer_b_id, peer_b.handle().local_peer_id);
 
-    let payload = b"hello over webrtc direct".to_vec();
-    peer_a.handle().send(NetworkCommand::SendMessage {
-        payload: payload.clone(),
-        target: SendTarget::Peer(peer_b_id),
-    });
-
-    assert_eq!(
-        wait_for_message(peer_b.handle(), Duration::from_secs(10)),
-        payload
-    );
+    #[cfg(feature = "legacy-raw-codec")]
+    {
+        let payload = b"hello over webrtc direct".to_vec();
+        peer_a
+            .handle()
+            .send(NetworkCommand::SendMessage {
+                payload: payload.clone(),
+                target: SendTarget::Peer(peer_b_id),
+            })
+            .expect("queue legacy message");
+        assert_eq!(
+            wait_for_message(peer_b.handle(), Duration::from_secs(10)),
+            payload
+        );
+    }
 }

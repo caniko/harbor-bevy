@@ -24,7 +24,6 @@ pub fn build_webrtc_swarm_with_keypair(
     // and AWS-LC through other clients, which disables Rustls's auto-selection.
     let _ = rustls::crypto::ring::default_provider().install_default();
     let gossipsub_enabled = config.gossipsub_enabled;
-    let protocol_name = crate::session::stream_protocol(&config.protocol);
     let transport_keypair = keypair.clone();
     // Reuse the persisted certificate when the caller supplies one: the
     // listener's `/certhash/...` is the fingerprint of this certificate, and a
@@ -46,7 +45,8 @@ pub fn build_webrtc_swarm_with_keypair(
         .with_behaviour(|key| {
             build_behaviour(
                 key,
-                protocol_name.clone(),
+                #[cfg(feature = "legacy-raw-codec")]
+                &config.protocol,
                 thespan_config,
                 gossipsub_enabled,
                 libp2p::ping::Config::new()

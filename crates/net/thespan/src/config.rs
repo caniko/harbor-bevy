@@ -29,7 +29,7 @@ impl ThespanConfig {
         format!("{}/keepalive/1.0.0", self.protocol_prefix)
     }
 
-    /// Base request-response protocol ID negotiated over Steam.
+    /// Base legacy request-response protocol ID negotiated over Steam.
     pub fn steam_protocol(&self) -> String {
         format!("{}/steam/1.0.0", self.protocol_prefix)
     }
@@ -60,11 +60,9 @@ pub enum TransportType {
 pub struct LanConfig {
     /// Port to listen on. Use 0 for OS-assigned.
     pub listen_port: u16,
-    /// Wire protocol identifier (e.g. "/myapp/1.0.0").
+    /// Legacy request-response protocol identifier (e.g. "/myapp/1.0.0").
     ///
-    /// Must start with `/`. Each session that should be isolated from others
-    /// should use a unique protocol string (e.g. `/myapp/session-42/1.0.0`).
-    /// Peers using different protocols cannot exchange request-response messages.
+    /// Must start with `/`. Ignored without `legacy-raw-codec`.
     pub protocol: String,
     /// Optional address to dial immediately on startup.
     /// Format: `/ip4/{ip}/udp/{port}/quic-v1`.
@@ -92,7 +90,7 @@ impl Default for LanConfig {
 pub struct WebRtcConfig {
     /// Port to listen on. Use 0 for OS-assigned.
     pub listen_port: u16,
-    /// Wire protocol identifier (e.g. "/myapp/1.0.0").
+    /// Legacy request-response protocol identifier; ignored without `legacy-raw-codec`.
     pub protocol: String,
     /// Optional full `/webrtc-direct/certhash/...` address to dial on startup.
     pub dial_addr: Option<libp2p::Multiaddr>,

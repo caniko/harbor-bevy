@@ -37,7 +37,7 @@ pub const INTERNET_DIAL_MAX_DELAY: Duration = Duration::from_secs(10);
 /// Configuration for the internet transport.
 #[derive(Debug, Clone)]
 pub struct InternetConfig {
-    /// Wire protocol identifier. Must start with `/`.
+    /// Legacy request-response protocol ID. Must start with `/` when enabled.
     pub protocol: String,
     /// QUIC (UDP) listen port. `0` for OS-assigned.
     pub quic_port: u16,
@@ -90,7 +90,6 @@ pub fn build_internet_swarm_with_config(
     keypair: libp2p::identity::Keypair,
     thespan_config: &ThespanConfig,
 ) -> Result<Swarm<ThespanBehaviour>, TransportError> {
-    let protocol_name = crate::session::stream_protocol(&config.protocol);
     let gossipsub_enabled = config.gossipsub_enabled;
     let relay_enabled = config.relay_enabled;
     let dcutr_enabled = config.dcutr_enabled && relay_enabled;
@@ -128,7 +127,7 @@ pub fn build_internet_swarm_with_config(
             let identify_toggle = if relay_enabled {
                 Toggle::from(Some(libp2p::identify::Behaviour::new(
                     libp2p::identify::Config::new(
-                        "/thespan/internet/identify/1".into(),
+                        crate::session::applied_protocol("/thespan/internet/identify/1"),
                         key.public(),
                     ),
                 )))
@@ -144,7 +143,8 @@ pub fn build_internet_swarm_with_config(
 
             build_behaviour(
                 key,
-                protocol_name.clone(),
+                #[cfg(feature = "legacy-raw-codec")]
+                &config.protocol,
                 thespan_config,
                 gossipsub_enabled,
                 libp2p::ping::Config::new()
