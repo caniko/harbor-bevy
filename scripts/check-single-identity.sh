@@ -105,6 +105,7 @@ def check_stock_like(workspace, expected_locals, allowed_local_patches, git_pins
 stock_locals = (
     "veritasium_wire", "thespan", "thespan_bevy", "harbor-bevy-core", "harbor-bevy-ui",
     "harbor-bevy-diagnostics", "harbor-bevy-telemetry", "harbor-bevy",
+    "harbor-bevy-fuzz", "harbor-bevy-headless", "harbor-bevy-visual-test",
 )
 stock_bevy = check_stock_like(
     Path("."),

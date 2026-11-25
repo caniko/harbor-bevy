@@ -32,6 +32,11 @@ members = [
     "crates/bevy/harbor-bevy-telemetry",
     "crates/bevy/harbor-bevy-ui",
     "crates/bevy/thespan_bevy",
+
+    # Layer 3 — Reusable test harnesses.
+    "crates/testing/harbor-bevy-fuzz",
+    "crates/testing/harbor-bevy-headless",
+    "crates/testing/harbor-bevy-visual-test",
 ]
 exclude = ["veritasium", "steam", "crates/tools"]
 
