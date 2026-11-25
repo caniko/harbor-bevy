@@ -1,0 +1,44 @@
+[package]
+name = "thespan-rendezvous-client"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "libp2p discovery client for the Thespan rendezvous service"
+
+[lints]
+workspace = true
+
+[dependencies]
+thespan-rendezvous-proto = { path = "../thespan-rendezvous-proto", version = "0.1.0" }
+rkyv.workspace = true
+libp2p = { version = "0.56", default-features = false, features = [
+    "tokio",
+    "macros",
+    "tcp",
+    "quic",
+    "noise",
+    "yamux",
+    "identify",
+    "ping",
+    "request-response",
+    "relay",
+    "dcutr",
+    "ed25519",
+] }
+tokio = { workspace = true, features = ["macros"] }
+futures = "0.3"
+async-trait = "0.1"
+tracing.workspace = true
+thiserror.workspace = true
+rand.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "process", "io-util"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1"
+
+[[example]]
+name = "smoke"
+path = "examples/smoke.rs"

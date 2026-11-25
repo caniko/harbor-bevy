@@ -1,0 +1,20 @@
+[package]
+name = "libp2p-dns"
+version = "0.44.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+description = "Disabled local libp2p-dns patch used to keep hickory-proto out of the audited lock graph."
+
+[lib]
+name = "libp2p_dns"
+path = "src/lib.rs"
+
+[features]
+default = []
+tokio = []
+
+[lints]
+workspace = true

@@ -1,0 +1,30 @@
+[package]
+name = "thespan_bevy"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+description = "Bevy integration for thespan networking"
+
+[dependencies]
+# The standalone networking layer (libp2p transport)
+thespan = { path = "../../net/thespan" }
+veritasium_wire = { path = "../../net/veritasium_wire" }
+
+# ECS framework (minimal features for a networking library)
+bevy = { workspace = true, features = ["std", "bevy_log"] }
+
+# Channel types used in NetworkResource's public API
+crossbeam-channel.workspace = true
+
+[features]
+default = []
+steam = ["thespan/steam"]
+# Forwards to `thespan/session-isolation` — see that crate for semantics.
+# Test-only; production builds leave this off.
+session-isolation = ["thespan/session-isolation"]
+
+[lints]
+workspace = true

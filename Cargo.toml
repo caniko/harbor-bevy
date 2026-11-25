@@ -16,7 +16,17 @@ members = [
     "crates/platform/trust-safety",
 
     # Layer 1 — Bevy-free networking and wire identities.
+    "crates/net/libp2p-dns-disabled",
+    "crates/net/libp2p-mdns-disabled",
+    "crates/net/libp2p-steam-transport",
+    "crates/net/thespan",
+    "crates/net/thespan-rendezvous-client",
+    "crates/net/thespan-rendezvous-proto",
+    "crates/net/thespan-rendezvous-server",
     "crates/net/veritasium_wire",
+
+    # Layer 2 — Stock-tier Bevy 0.20.1 plugins.
+    "crates/bevy/thespan_bevy",
 ]
 exclude = ["veritasium", "steam", "crates/tools"]
 
@@ -143,3 +153,12 @@ unnecessary_unwrap = "warn"
 # Denied or highlighted: CI should catch accidental debug scaffolding.
 dbg_macro = "deny"
 todo = "deny"
+
+# Local path patches for libp2p runtime fixes (rust-libp2p#6762 and #6763) and
+# disabled DNS/mDNS shadows (keeps Hickory out of the offline Stock lockfile).
+# Strictly local paths — ZERO Git dependencies and ZERO Bevy/Veritasium patches.
+[patch.crates-io]
+libp2p-swarm = { path = "vendor/libp2p-swarm-0.47.1" }
+libp2p-relay = { path = "vendor/libp2p-relay-0.21.1" }
+libp2p-dns = { path = "crates/net/libp2p-dns-disabled", version = "0.44.0" }
+libp2p-mdns = { path = "crates/net/libp2p-mdns-disabled", version = "0.48.0" }

@@ -1,0 +1,31 @@
+[package]
+name = "libp2p-steam-transport"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "libp2p Transport implementation over Steam Relay (ISteamNetworkingSockets)"
+readme = "README.md"
+keywords = ["libp2p", "steam", "p2p", "networking", "transport"]
+categories = ["network-programming", "asynchronous", "game-development"]
+
+[lints]
+workspace = true
+
+[dependencies]
+libp2p-core = "0.43"
+libp2p-identity = "0.2"
+tokio.workspace = true
+futures = "0.3"
+log.workspace = true
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+steamworks = "0.13"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros"] }
+libp2p-identity = { version = "0.2", features = ["ed25519"] }
+
+[package.metadata.docs.rs]
+all-features = true

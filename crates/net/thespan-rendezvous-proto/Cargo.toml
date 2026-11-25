@@ -1,0 +1,18 @@
+[package]
+name = "thespan-rendezvous-proto"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Wire types for Thespan rendezvous discovery, with no libp2p dependency"
+
+[lints]
+workspace = true
+
+[dependencies]
+rkyv.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+rkyv.workspace = true

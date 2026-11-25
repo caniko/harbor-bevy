@@ -1,0 +1,81 @@
+[package]
+name = "thespan"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Standalone multi-transport actor networking (libp2p)"
+
+[dependencies]
+# Actor framework (remote feature for distributed actors)
+piying.workspace = true
+
+# Async runtime (for actor + libp2p swarm)
+tokio = { workspace = true, features = ["macros"] }
+
+# Peer-to-peer networking
+libp2p = { version = "0.56", default-features = false, features = [
+    "quic",
+    "tcp",
+    "noise",
+    "request-response",
+    "gossipsub",
+    "ping",
+    "identify",
+    "relay",
+    "dcutr",
+    "macros",
+    "tokio",
+    "yamux",
+] }
+libp2p-webrtc = { version = "0.9.0-alpha.1", features = ["tokio", "pem"] }
+rand08 = { package = "rand", version = "0.8" }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+
+# Hashing for GossipSub message IDs
+sha2 = "0.11"
+
+# Async utilities (StreamExt for Swarm, AsyncRead/Write for Codec)
+futures = "0.3"
+async-trait = "0.1"
+
+# Cross-thread channels (Actor -> consumer)
+crossbeam-channel.workspace = true
+
+# Void type for unreachable handler events
+void = "1"
+
+# Error handling
+thiserror.workspace = true
+dirs.workspace = true
+
+# Logging
+log.workspace = true
+tracing.workspace = true
+parking_lot = "0.12"
+
+# Steam P2P transport (optional — enabled via "steam" feature)
+libp2p-steam-transport = { version = "0.1.0", path = "../libp2p-steam-transport", optional = true }
+
+[features]
+default = []
+test-hooks = []
+steam = ["dep:libp2p-steam-transport"]
+# Test-only: when enabled, every libp2p protocol id and gossipsub topic
+# thespan advertises is suffixed with the value of `THESPAN_SESSION_ID` (if
+# set), keeping co-running test sessions on the same UDP port from
+# cross-connecting via shared protocol ids. Forwarded into the underlying piying
+# crate so its registry/messaging protocol ids are namespaced too.
+# Production builds leave this off and emit byte-identical wire identifiers
+# to the unsuffixed path.
+session-isolation = ["piying/session-isolation"]
+
+[dev-dependencies]
+env_logger = "0.11"
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dev-dependencies]
+steamworks = "0.13"
+
+[lints]
+workspace = true

@@ -1,0 +1,54 @@
+[Unit]
+Description=Thespan libp2p rendezvous and relay server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/thespan-rendezvous
+Restart=on-failure
+RestartSec=3s
+
+# Identity persistence
+StateDirectory=thespan-rendezvous
+Environment=THESPAN_RDV_KEY=/var/lib/thespan-rendezvous/identity.key
+Environment=THESPAN_RDV_QUIC=/ip4/0.0.0.0/udp/4001/quic-v1
+Environment=THESPAN_RDV_TCP=/ip4/0.0.0.0/tcp/4001
+Environment=THESPAN_RDV_QUIC_V6=/ip6/::/udp/4001/quic-v1
+Environment=THESPAN_RDV_TCP_V6=/ip6/::/tcp/4001
+Environment=THESPAN_RDV_LOG_JSON=true
+Environment=THESPAN_RDV_METRICS_ADDR=127.0.0.1:9617
+Environment=THESPAN_RDV_RELAY_MAX_RESERVATIONS=1024
+Environment=THESPAN_RDV_RELAY_MAX_RESERVATIONS_PER_PEER=4
+Environment=THESPAN_RDV_RELAY_RESERVATION_SECS=7200
+Environment=THESPAN_RDV_RELAY_MAX_CIRCUITS=256
+Environment=THESPAN_RDV_RELAY_MAX_CIRCUITS_PER_PEER=8
+Environment=THESPAN_RDV_RELAY_CIRCUIT_SECS=1800
+Environment=THESPAN_RDV_RELAY_CIRCUIT_BYTES=67108864
+Environment=RUST_LOG=info,libp2p_swarm=warn
+
+# Hardening — server is stateless, only needs net + its state dir.
+DynamicUser=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+
+# Resource caps — sized for ~50k registrations + relay traffic.
+MemoryMax=256M
+TasksMax=512
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+# Multi-stage build for the rendezvous server.
+# Final image is distroless cc — no shell, no package manager, ~25 MB.
+
+FROM rust:1.97.1-slim AS builder
+WORKDIR /src
+RUN apt-get update && apt-get install -y --no-install-recommends pkg-config && rm -rf /var/lib/apt/lists/*
+COPY . .
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/src/target \
+    cargo build --release -p thespan-rendezvous-server && \
+    cp /src/target/release/thespan-rendezvous /thespan-rendezvous
+
+FROM gcr.io/distroless/cc-debian12:nonroot
+COPY --from=builder /thespan-rendezvous /usr/local/bin/thespan-rendezvous
+# Persist identity outside the (read-only) image rootfs.
+VOLUME ["/var/lib/thespan-rendezvous"]
+EXPOSE 4001/tcp
+EXPOSE 4001/udp
+EXPOSE 9617/tcp
+ENTRYPOINT ["/usr/local/bin/thespan-rendezvous"]

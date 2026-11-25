@@ -1,0 +1,20 @@
+[package]
+name = "libp2p-mdns"
+version = "0.48.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+description = "Disabled local libp2p-mdns patch used to keep hickory-proto out of the audited lock graph."
+
+[lib]
+name = "libp2p_mdns"
+path = "src/lib.rs"
+
+[features]
+default = []
+tokio = []
+
+[lints]
+workspace = true
