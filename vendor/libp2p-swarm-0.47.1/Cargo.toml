@@ -23,15 +23,8 @@ autotests = false
 autobenches = false
 description = "The libp2p swarm"
 readme = false
-keywords = [
-    "peer-to-peer",
-    "libp2p",
-    "networking",
-]
-categories = [
-    "network-programming",
-    "asynchronous",
-]
+keywords = ["peer-to-peer", "libp2p", "networking"]
+categories = ["network-programming", "asynchronous"]
 license = "MIT"
 repository = "https://github.com/libp2p/rust-libp2p"
 
@@ -41,10 +34,7 @@ all-features = true
 [features]
 macros = ["dep:libp2p-swarm-derive"]
 tokio = ["dep:tokio"]
-wasm-bindgen = [
-    "dep:wasm-bindgen-futures",
-    "dep:getrandom",
-]
+wasm-bindgen = ["dep:wasm-bindgen-futures", "dep:getrandom"]
 
 [lib]
 name = "libp2p_swarm"
@@ -133,12 +123,7 @@ features = ["ed25519"]
 
 [dev-dependencies.tokio]
 version = "1.38"
-features = [
-    "time",
-    "rt",
-    "macros",
-    "rt-multi-thread",
-]
+features = ["time", "rt", "macros", "rt-multi-thread"]
 default-features = false
 
 [dev-dependencies.tracing-subscriber]

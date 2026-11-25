@@ -1,44 +1,50 @@
 [workspace]
 resolver = "2"
 members = [
-    # Layer 0 — Bevy-free platform, policy, attestation, integrity, and telemetry crates.
-    "crates/platform/attestation-broker",
-    "crates/platform/certification-core",
-    "crates/platform/diagnostics-policy",
-    "crates/platform/http-client",
-    "crates/platform/localization-core",
-    "crates/platform/p2p-integrity",
-    "crates/platform/parental-controls",
-    "crates/platform/platform-attestation",
-    "crates/platform/release-metadata",
-    "crates/platform/telemetry-client",
-    "crates/platform/telemetry-protocol",
-    "crates/platform/trust-safety",
+  # Layer 0 — Bevy-free platform, policy, attestation, integrity, and telemetry crates.
+  "crates/platform/attestation-broker",
+  "crates/platform/certification-core",
+  "crates/platform/diagnostics-policy",
+  "crates/platform/http-client",
+  "crates/platform/localization-core",
+  "crates/platform/p2p-integrity",
+  "crates/platform/parental-controls",
+  "crates/platform/platform-attestation",
+  "crates/platform/release-metadata",
+  "crates/platform/telemetry-client",
+  "crates/platform/telemetry-protocol",
+  "crates/platform/trust-safety",
 
-    # Layer 1 — Bevy-free networking and wire identities.
-    "crates/net/libp2p-dns-disabled",
-    "crates/net/libp2p-mdns-disabled",
-    "crates/net/libp2p-steam-transport",
-    "crates/net/thespan",
-    "crates/net/thespan-rendezvous-client",
-    "crates/net/thespan-rendezvous-proto",
-    "crates/net/thespan-rendezvous-server",
-    "crates/net/veritasium_wire",
+  # Layer 1 — Bevy-free networking and wire identities.
+  "crates/net/libp2p-dns-disabled",
+  "crates/net/libp2p-mdns-disabled",
+  "crates/net/libp2p-steam-transport",
+  "crates/net/thespan",
+  "crates/net/thespan-rendezvous-client",
+  "crates/net/thespan-rendezvous-proto",
+  "crates/net/thespan-rendezvous-server",
+  "crates/net/veritasium_wire",
 
-    # Layer 2 — Stock-tier Bevy 0.20.1 plugins.
-    "crates/bevy/harbor-bevy",
-    "crates/bevy/harbor-bevy-core",
-    "crates/bevy/harbor-bevy-diagnostics",
-    "crates/bevy/harbor-bevy-telemetry",
-    "crates/bevy/harbor-bevy-ui",
-    "crates/bevy/thespan_bevy",
+  # Layer 2 — Stock-tier Bevy 0.20.1 plugins.
+  "crates/bevy/harbor-bevy",
+  "crates/bevy/harbor-bevy-core",
+  "crates/bevy/harbor-bevy-diagnostics",
+  "crates/bevy/harbor-bevy-telemetry",
+  "crates/bevy/harbor-bevy-ui",
+  "crates/bevy/thespan_bevy",
 
-    # Layer 3 — Reusable test harnesses.
-    "crates/testing/harbor-bevy-fuzz",
-    "crates/testing/harbor-bevy-headless",
-    "crates/testing/harbor-bevy-visual-test",
+  # Layer 3 — Reusable test harnesses.
+  "crates/testing/harbor-bevy-fuzz",
+  "crates/testing/harbor-bevy-headless",
+  "crates/testing/harbor-bevy-visual-test",
 ]
-exclude = ["veritasium", "steam", "crates/tools", "templates/game", "templates/multiplayer"]
+exclude = [
+  "veritasium",
+  "steam",
+  "crates/tools",
+  "templates/game",
+  "templates/multiplayer",
+]
 
 [workspace.package]
 version = "0.1.0"
@@ -53,10 +59,19 @@ blake3 = "1"
 clap = { version = "4", features = ["derive"] }
 crossbeam-channel = "0.5"
 dirs = "6.0"
-log = { version = "0.4", features = ["max_level_debug", "release_max_level_warn"] }
-piying = { version = "0.1.3", default-features = false, features = ["macros", "remote", "rkyv-codec"] }
+log = { version = "0.4", features = [
+  "max_level_debug",
+  "release_max_level_warn",
+] }
+piying = { version = "0.1.3", default-features = false, features = [
+  "macros",
+  "remote",
+  "rkyv-codec",
+] }
 rand = "0.10"
-reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
+reqwest = { version = "0.13", default-features = false, features = [
+  "rustls-no-provider",
+] }
 rkyv = "0.8.17"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

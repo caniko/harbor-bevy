@@ -6,6 +6,4 @@ struct Foo {
     ping: ping::Behaviour,
 }
 
-fn main() {
-
-}
+fn main() {}

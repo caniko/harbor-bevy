@@ -19,7 +19,11 @@ license.workspace = true
 bevy = { version = "0.20.1", default-features = false, features = ["std"] }
 bevy_replicated = { package = "veritasium_replicated", git = "https://github.com/caniko/harbor-bevy.git", branch = "trunk" }
 blake3 = "1"
-harbor-bevy = { git = "https://github.com/caniko/harbor-bevy.git", branch = "trunk", features = ["core", "ui", "veritasium-observers"] }
+harbor-bevy = { git = "https://github.com/caniko/harbor-bevy.git", branch = "trunk", features = [
+  "core",
+  "ui",
+  "veritasium-observers",
+] }
 harbor-bevy-net = { git = "https://github.com/caniko/harbor-bevy.git", branch = "trunk" }
 rkyv = "0.8.17"
 

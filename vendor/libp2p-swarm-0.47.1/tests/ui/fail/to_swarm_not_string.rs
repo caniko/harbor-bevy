@@ -14,6 +14,4 @@ impl From<ping::Event> for FooEvent {
     }
 }
 
-fn main() {
-
-}
+fn main() {}

@@ -11,5 +11,8 @@ description = "Bevy-independent trust and safety core"
 workspace = true
 
 [dependencies]
-ed25519-dalek = { version = "2", default-features = false, features = ["alloc", "std"] }
+ed25519-dalek = { version = "2", default-features = false, features = [
+  "alloc",
+  "std",
+] }
 rand = { workspace = true }

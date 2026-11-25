@@ -64,15 +64,15 @@ optional = true
 
 [features]
 bin = [
-    "dep:clap",
-    "dep:reqwest",
-    "dep:http-client",
-    "dep:tokio",
-    "dep:hyper",
-    "dep:hyper-util",
-    "dep:http-body-util",
-    "dep:http",
-    "dep:bytes",
+  "dep:clap",
+  "dep:reqwest",
+  "dep:http-client",
+  "dep:tokio",
+  "dep:hyper",
+  "dep:hyper-util",
+  "dep:http-body-util",
+  "dep:http",
+  "dep:bytes",
 ]
 
 [[bin]]

@@ -14,18 +14,18 @@ workspace = true
 thespan-rendezvous-proto = { path = "../thespan-rendezvous-proto", version = "0.1.0" }
 rkyv.workspace = true
 libp2p = { version = "0.56", default-features = false, features = [
-    "tokio",
-    "macros",
-    "tcp",
-    "quic",
-    "noise",
-    "yamux",
-    "identify",
-    "ping",
-    "request-response",
-    "relay",
-    "dcutr",
-    "ed25519",
+  "tokio",
+  "macros",
+  "tcp",
+  "quic",
+  "noise",
+  "yamux",
+  "identify",
+  "ping",
+  "request-response",
+  "relay",
+  "dcutr",
+  "ed25519",
 ] }
 tokio = { workspace = true, features = ["macros"] }
 futures = "0.3"
@@ -35,7 +35,12 @@ thiserror.workspace = true
 rand.workspace = true
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["rt-multi-thread", "macros", "process", "io-util"] }
+tokio = { workspace = true, features = [
+  "rt-multi-thread",
+  "macros",
+  "process",
+  "io-util",
+] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 anyhow = "1"
 

@@ -18,17 +18,17 @@ ui = ["dep:harbor-bevy-ui"]
 diagnostics = ["dep:harbor-bevy-diagnostics", "harbor-bevy-diagnostics?/bevy"]
 telemetry = ["dep:harbor-bevy-telemetry"]
 platform = [
-    "dep:localization-core",
-    "dep:parental-controls",
-    "dep:trust-safety",
-    "dep:platform-attestation",
-    "dep:diagnostics-policy",
-    "dep:release-metadata",
-    "dep:http-client",
-    "dep:certification-core",
-    "dep:p2p-integrity",
-    "dep:telemetry-protocol",
-    "dep:telemetry-client",
+  "dep:localization-core",
+  "dep:parental-controls",
+  "dep:trust-safety",
+  "dep:platform-attestation",
+  "dep:diagnostics-policy",
+  "dep:release-metadata",
+  "dep:http-client",
+  "dep:certification-core",
+  "dep:p2p-integrity",
+  "dep:telemetry-protocol",
+  "dep:telemetry-client",
 ]
 # Enable only when the consumer supplies the Veritasium Bevy patch.
 veritasium-observers = ["harbor-bevy-core?/veritasium-observers"]

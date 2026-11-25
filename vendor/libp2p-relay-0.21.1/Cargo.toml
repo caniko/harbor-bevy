@@ -15,8 +15,8 @@ rust-version = "1.83.0"
 name = "libp2p-relay"
 version = "0.21.1"
 authors = [
-    "Parity Technologies <admin@parity.io>",
-    "Max Inden <mail@max-inden.de>",
+  "Parity Technologies <admin@parity.io>",
+  "Max Inden <mail@max-inden.de>",
 ]
 build = false
 autolib = false
@@ -26,15 +26,8 @@ autotests = false
 autobenches = false
 description = "Communications relaying for libp2p"
 readme = false
-keywords = [
-    "peer-to-peer",
-    "libp2p",
-    "networking",
-]
-categories = [
-    "network-programming",
-    "asynchronous",
-]
+keywords = ["peer-to-peer", "libp2p", "networking"]
+categories = ["network-programming", "asynchronous"]
 license = "MIT"
 repository = "https://github.com/libp2p/rust-libp2p"
 
@@ -109,10 +102,7 @@ version = "0.43.0"
 
 [dev-dependencies.libp2p-swarm]
 version = "0.47.1"
-features = [
-    "macros",
-    "tokio",
-]
+features = ["macros", "tokio"]
 
 [dev-dependencies.libp2p-swarm-test]
 version = "0.6.0"
@@ -122,10 +112,7 @@ version = "0.47.0"
 
 [dev-dependencies.tokio]
 version = "1.38"
-features = [
-    "macros",
-    "rt-multi-thread",
-]
+features = ["macros", "rt-multi-thread"]
 default-features = false
 
 [dev-dependencies.tracing-subscriber]

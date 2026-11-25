@@ -13,7 +13,15 @@ default = []
 steam = ["dep:steam-pressure", "steam-pressure/steam", "dep:bevy-steamworks"]
 
 [dependencies]
-bevy = { version = "0.20.1", default-features = false, features = ["std", "bevy_log", "bevy_state", "bevy_color", "bevy_text", "bevy_ui", "bevy_ui_widgets"] }
+bevy = { version = "0.20.1", default-features = false, features = [
+  "std",
+  "bevy_log",
+  "bevy_state",
+  "bevy_color",
+  "bevy_text",
+  "bevy_ui",
+  "bevy_ui_widgets",
+] }
 harbor-bevy-core = { path = "../../crates/bevy/harbor-bevy-core" }
 platform-attestation = { path = "../../crates/platform/platform-attestation" }
 rkyv = "0.8.17"

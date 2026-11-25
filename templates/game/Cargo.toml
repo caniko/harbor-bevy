@@ -17,13 +17,16 @@ license.workspace = true
 
 [dependencies]
 bevy = { version = "0.20.1", default-features = false, features = [
-    "async_executor",
-    "bevy_core_pipeline",
-    "bevy_log",
-    "bevy_sprite_render",
-    "bevy_ui_render",
-    "bevy_winit",
-    "default_font",
-    "wayland",
+  "async_executor",
+  "bevy_core_pipeline",
+  "bevy_log",
+  "bevy_sprite_render",
+  "bevy_ui_render",
+  "bevy_winit",
+  "default_font",
+  "wayland",
 ] }
-harbor-bevy = { git = "https://github.com/caniko/harbor-bevy.git", branch = "trunk", features = ["core", "ui"] }
+harbor-bevy = { git = "https://github.com/caniko/harbor-bevy.git", branch = "trunk", features = [
+  "core",
+  "ui",
+] }

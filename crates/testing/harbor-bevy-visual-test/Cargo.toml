@@ -17,26 +17,29 @@ update-snapshots = []
 
 [dependencies]
 bevy = { version = "=0.20.1", default-features = false, features = [
-    "std",
-    "async_executor",
-    "bevy_asset",
-    "bevy_color",
-    "bevy_image",
-    "bevy_picking",
-    "bevy_render",
-    "bevy_core_pipeline",
-    "bevy_sprite",
-    "bevy_sprite_render",
-    "bevy_state",
-    "bevy_text",
-    "bevy_ui",
-    "bevy_ui_render",
-    "bevy_ui_widgets",
-    "default_font",
-    "multi_threaded",
-    "png",
+  "std",
+  "async_executor",
+  "bevy_asset",
+  "bevy_color",
+  "bevy_image",
+  "bevy_picking",
+  "bevy_render",
+  "bevy_core_pipeline",
+  "bevy_sprite",
+  "bevy_sprite_render",
+  "bevy_state",
+  "bevy_text",
+  "bevy_ui",
+  "bevy_ui_render",
+  "bevy_ui_widgets",
+  "default_font",
+  "multi_threaded",
+  "png",
 ] }
-image = { version = "0.25", default-features = false, features = ["png", "webp"] }
+image = { version = "0.25", default-features = false, features = [
+  "png",
+  "webp",
+] }
 image-compare = "0.5"
 rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { workspace = true }
@@ -47,7 +50,10 @@ toml = "1"
 visual-rubric = { version = "0.4.4", features = ["codex-acp"], optional = true }
 
 [target.'cfg(unix)'.dependencies]
-nix = { version = "0.31", default-features = false, features = ["process", "signal"] }
+nix = { version = "0.31", default-features = false, features = [
+  "process",
+  "signal",
+] }
 wait-timeout = "0.2"
 
 [target.'cfg(windows)'.dependencies]

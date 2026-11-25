@@ -16,17 +16,17 @@ tokio = { workspace = true, features = ["macros"] }
 
 # Peer-to-peer networking
 libp2p = { version = "0.56", default-features = false, features = [
-    "quic",
-    "tcp",
-    "noise",
-    "gossipsub",
-    "ping",
-    "identify",
-    "relay",
-    "dcutr",
-    "macros",
-    "tokio",
-    "yamux",
+  "quic",
+  "tcp",
+  "noise",
+  "gossipsub",
+  "ping",
+  "identify",
+  "relay",
+  "dcutr",
+  "macros",
+  "tokio",
+  "yamux",
 ] }
 libp2p-webrtc = { version = "0.9.0-alpha.1", features = ["tokio", "pem"] }
 rand08 = { package = "rand", version = "0.8" }

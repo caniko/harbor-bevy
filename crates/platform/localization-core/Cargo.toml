@@ -12,5 +12,9 @@ readme = "README.md"
 workspace = true
 
 [dependencies]
-icu_locale = { version = "=2.2.0", default-features = false, features = ["compiled_data"] }
-icu_plurals = { version = "=2.2.0", default-features = false, features = ["compiled_data"] }
+icu_locale = { version = "=2.2.0", default-features = false, features = [
+  "compiled_data",
+] }
+icu_plurals = { version = "=2.2.0", default-features = false, features = [
+  "compiled_data",
+] }
