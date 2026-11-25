@@ -21,6 +21,10 @@
 //!
 //! Use [`HeadlessGame`] to reuse the same game adapter in [`BatchRunner`], or
 //! [`PeerCluster`] to explicitly interleave multiple peers.
+//!
+//! Enable `schedule-shuffle` to run a game under different Bevy system
+//! orderings with `ScheduleShuffleConfig::run_game`. Supply a stable final
+//! state hash; add `report.axis_report()` to a [`MatrixReport`] to gate CI.
 
 pub mod app;
 pub mod batch;
@@ -28,6 +32,8 @@ pub mod bug_report;
 pub mod fault_injector;
 pub mod matrix_report;
 pub mod peer_cluster;
+#[cfg(feature = "schedule-shuffle")]
+mod schedule_shuffle;
 
 pub use app::{HeadlessApp, HeadlessConfig, HeadlessGame};
 pub use batch::{
@@ -41,3 +47,5 @@ pub use fault_injector::{
 pub use harbor_bevy_diagnostics::{FailureCategory, LogEntry, LogLevel, LogRingBuffer};
 pub use matrix_report::{AxisReport, MatrixReport, ScenarioOutcome, ScenarioResult};
 pub use peer_cluster::{PeerCluster, PeerIndex};
+#[cfg(feature = "schedule-shuffle")]
+pub use schedule_shuffle::{ScheduleShuffleCase, ScheduleShuffleConfig, ScheduleShuffleReport};

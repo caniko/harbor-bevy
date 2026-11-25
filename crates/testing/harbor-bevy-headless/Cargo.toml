@@ -8,6 +8,9 @@ repository.workspace = true
 publish = false
 description = "Deterministic headless testing utilities for stock Bevy"
 
+[features]
+schedule-shuffle = ["bevy/debug"]
+
 [dependencies]
 anyhow = "1"
 bevy = { workspace = true, features = ["std", "bevy_state", "bevy_log"] }

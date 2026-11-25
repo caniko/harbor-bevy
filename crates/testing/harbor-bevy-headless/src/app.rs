@@ -110,6 +110,15 @@ impl HeadlessApp {
         if !self.can_step() {
             return self.exit.clone();
         }
+        self.finish_plugins();
+        self.insert_resource(TimeUpdateStrategy::ManualDuration(delta));
+        crate::fault_injector::with_frame_scope(self.world().id(), || self.app.update());
+        self.frames = self.frames.saturating_add(1);
+        self.exit = self.app.should_exit();
+        self.exit.clone()
+    }
+
+    pub(crate) fn finish_plugins(&mut self) {
         match self.app.plugins_state() {
             PluginsState::Ready => {
                 self.app.finish();
@@ -119,11 +128,6 @@ impl HeadlessApp {
             PluginsState::Cleaned => {}
             PluginsState::Adding => panic!("headless app plugins are not ready"),
         }
-        self.insert_resource(TimeUpdateStrategy::ManualDuration(delta));
-        crate::fault_injector::with_frame_scope(self.world().id(), || self.app.update());
-        self.frames = self.frames.saturating_add(1);
-        self.exit = self.app.should_exit();
-        self.exit.clone()
     }
 
     /// Run up to `count` frames and return the number actually executed.
