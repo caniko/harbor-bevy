@@ -34,6 +34,7 @@
       systems = ["x86_64-linux" "aarch64-linux"];
 
       flake.lib = import ./nix/lib {inherit harbor-rs harbor-meta harbor-android;};
+      flake.nixosModules = import ./nix/modules;
       partitions.dev = {
         extraInputsFlake = ./nix;
         module = ./nix/dev-partition.nix;

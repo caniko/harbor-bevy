@@ -114,5 +114,35 @@ print(f"Fork: 74 patches; {len(resolved_engine)} resolved Bevy identities; one o
       flush=True)
 
 check_stock_like(Path("steam"), ("harbor-bevy-steam",), {})
-print("Steam: no Git dependencies or patches; one local harbor-bevy-steam")
+print("Steam: no Git dependencies or patches; one local harbor-bevy-steam", flush=True)
+
+tools = Path("crates/tools")
+tools_manifest = read_toml(tools / "Cargo.toml")
+tools_lock = read_toml(tools / "Cargo.lock")
+require(not tools_manifest.get("patch") and not tools_lock.get("patch"),
+        "crates/tools: unexpected patches")
+tools_graph = packages(tools)
+for name, ids in tools_graph.items():
+    if name in ENGINE or name.startswith("bevy"):
+        require(len(ids) == 1, f"crates/tools: duplicate {name}: {list(ids)}")
+for name in ("harbor-bevy-xtask", "harbor-bevy-mcp"):
+    ids = tools_graph[name]
+    require(len(ids) == 1 and next(iter(ids.values()))["source"] is None,
+            f"crates/tools: expected one local {name}: {list(ids)}")
+default_tools = json.loads(subprocess.check_output(
+    ["cargo", "metadata", "--locked", "--format-version", "1"],
+    cwd=tools,
+))
+default_nodes = {n["id"] for n in default_tools["resolve"]["nodes"]}
+default_pkgs = {
+    p["name"]: p.get("license") or ""
+    for p in default_tools["packages"]
+    if p["id"] in default_nodes
+}
+require("steampipe" not in default_pkgs,
+        "crates/tools: steampipe activated under default features")
+eupl_pkgs = [name for name, lic in default_pkgs.items() if "EUPL" in lic.upper()]
+require(not eupl_pkgs,
+        f"crates/tools: EUPL packages activated under default features: {eupl_pkgs}")
+print("Tools: isolated workspace; no patches; default features exclude steampipe/EUPL; one local xtask/mcp")
 PY

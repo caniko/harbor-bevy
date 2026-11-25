@@ -1,0 +1,33 @@
+[package]
+name = "harbor-bevy-mcp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Composable MCP tools for Bevy projects"
+
+[features]
+default = []
+cluster = ["dep:steampipe", "fragpipe/mcp"]
+
+[dependencies]
+anyhow.workspace = true
+fragpipe = { workspace = true, optional = true }
+mcp-layer.workspace = true
+regex.workspace = true
+rmcp = { version = "=3.10.0", features = ["server", "macros"] }
+schemars = "1"
+serde.workspace = true
+serde_json.workspace = true
+sha2 = "0.11"
+steampipe = { workspace = true, optional = true }
+
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "1", features = ["fs"] }
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

@@ -1,6 +1,7 @@
 /target/
 /veritasium/target/
 /steam/target/
+/crates/tools/target/
 /.work/
 result
 result-*
