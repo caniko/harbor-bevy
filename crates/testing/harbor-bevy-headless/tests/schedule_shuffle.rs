@@ -1,14 +1,17 @@
 #![cfg(feature = "schedule-shuffle")]
 
-use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
+use bevy::{
+    ecs::schedule::{LogLevel, ScheduleLabel},
+    prelude::*,
+};
 use harbor_bevy_headless::{HeadlessApp, HeadlessConfig, HeadlessGame, ScheduleShuffleConfig};
 
 #[derive(Resource)]
 struct Value(u64);
 
-struct Game<const ORDERED: bool>;
+struct Game<const ORDERED: bool, const PREINITIALIZE: bool = false>;
 
-impl<const ORDERED: bool> HeadlessGame for Game<ORDERED> {
+impl<const ORDERED: bool, const PREINITIALIZE: bool> HeadlessGame for Game<ORDERED, PREINITIALIZE> {
     type Action = ();
     type Outcome = ();
 
@@ -21,6 +24,13 @@ impl<const ORDERED: bool> HeadlessGame for Game<ORDERED> {
             app.add_systems(FixedUpdate, (double, increment).chain());
         } else {
             app.add_systems(FixedUpdate, (double, increment));
+        }
+        if PREINITIALIZE {
+            app.world_mut()
+                .schedule_scope(FixedUpdate, |world, schedule| {
+                    assert!(schedule.initialize(world).unwrap().is_some());
+                    assert!(!schedule.is_changed());
+                });
         }
     }
 
@@ -83,4 +93,24 @@ fn unordered_game_exposes_both_orders_and_marks_divergences() -> anyhow::Result<
     );
     assert!(!report.axis_report().passed());
     Ok(())
+}
+
+#[test]
+fn preinitialized_schedule_is_shuffled() -> anyhow::Result<()> {
+    let report = config().run_game::<Game<false, true>>(state_hash)?;
+    assert!(report.cases.iter().any(|case| case.hash == 53));
+    assert!(report.cases.iter().any(|case| case.hash == 56));
+    Ok(())
+}
+
+#[test]
+#[should_panic(
+    expected = "pairs of systems with conflicting data access have indeterminate execution order"
+)]
+fn preinitialized_schedule_reports_ambiguities() {
+    let config = ScheduleShuffleConfig {
+        ambiguity_detection: Some(LogLevel::Error),
+        ..config()
+    };
+    config.run_game::<Game<false, true>>(state_hash).unwrap();
 }

@@ -2,7 +2,7 @@ use anyhow::{Context, ensure};
 use bevy::{
     app::{AppExit, FixedUpdate, Update},
     ecs::{
-        schedule::{InternedScheduleLabel, LogLevel, ScheduleLabel},
+        schedule::{InternedScheduleLabel, LogLevel, ScheduleLabel, SystemSet},
         world::World,
     },
 };
@@ -11,6 +11,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     AxisReport, HeadlessApp, HeadlessConfig, HeadlessGame, ScenarioOutcome, ScenarioResult,
 };
+
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct RebuildSchedule;
 
 /// Compare game state across Bevy schedule build seeds.
 #[derive(Clone, Debug)]
@@ -73,6 +76,11 @@ impl ScheduleShuffleConfig {
                         settings.ambiguity_detection = level;
                     }
                     schedule.set_build_settings(settings);
+                    if !schedule.is_changed() && schedule.systems_len() != 0 {
+                        // Bevy 0.20.1 doesn't invalidate a built graph when settings
+                        // change. An empty set requests a rebuild without ordering systems.
+                        schedule.configure_sets(RebuildSchedule);
+                    }
                 });
             }
             let frames = app.run_frames(self.frames);
