@@ -1,0 +1,5 @@
+app_name = "Harbor Multiplayer"
+binary_name = "harbor-multiplayer"
+
+[bevy]
+mode = "veritasium"

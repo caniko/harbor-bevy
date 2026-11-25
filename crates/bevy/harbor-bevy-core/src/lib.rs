@@ -17,6 +17,31 @@ pub use observer_ordering::{AppObserverOrderingExt, ObserverNameExt, ObserverOrd
 pub use phase::{ActionReady, PhaseReadiness, PhaseReadinessTracker, PhaseTimer};
 pub use traits::Resettable;
 
+/// Installs graceful shutdown and observer ordering unless already registered.
+pub struct HarborCorePlugin;
+
+impl bevy::app::Plugin for HarborCorePlugin {
+    fn build(&self, app: &mut bevy::app::App) {
+        if !app.is_plugin_added::<GracefulShutdownPlugin>() {
+            app.add_plugins(GracefulShutdownPlugin);
+        }
+        if !app.is_plugin_added::<ObserverOrderingPlugin>() {
+            app.add_plugins(ObserverOrderingPlugin);
+        }
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn core_plugin_reuses_existing_shutdown_plugin() {
+    use bevy::app::App;
+
+    let mut app = App::new();
+    app.add_plugins(GracefulShutdownPlugin)
+        .add_plugins(HarborCorePlugin);
+    assert!(app.is_plugin_added::<ObserverOrderingPlugin>());
+}
+
 /// Both paths must be on the same filesystem. Publish only a complete write.
 fn write_then_rename(
     temporary: &std::path::Path,

@@ -35,6 +35,25 @@
 
       flake.lib = import ./nix/lib {inherit harbor-rs harbor-meta harbor-android;};
       flake.nixosModules = import ./nix/modules;
+      flake.templates = rec {
+        game = {
+          path = ./templates/game;
+          description = "Stock Bevy 2D game starter";
+          welcomeText = ''
+            Enter `nix develop`, then run `cargo run --bin harbor-game`.
+            Run `cargo test --workspace` and `cargo run -p xtask -- doctor patches` to verify the starter.
+          '';
+        };
+        multiplayer = {
+          path = ./templates/multiplayer;
+          description = "Veritasium Bevy equal-peer multiplayer starter";
+          welcomeText = ''
+            Enter `nix develop`, then run `cargo run --bin harbor-multiplayer` for the in-process demo.
+            Run `cargo test --workspace` and `cargo run -p xtask -- doctor patches` to verify the starter.
+          '';
+        };
+        default = game;
+      };
       partitions.dev = {
         extraInputsFlake = ./nix;
         module = ./nix/dev-partition.nix;

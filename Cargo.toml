@@ -38,7 +38,7 @@ members = [
     "crates/testing/harbor-bevy-headless",
     "crates/testing/harbor-bevy-visual-test",
 ]
-exclude = ["veritasium", "steam", "crates/tools"]
+exclude = ["veritasium", "steam", "crates/tools", "templates/game", "templates/multiplayer"]
 
 [workspace.package]
 version = "0.1.0"

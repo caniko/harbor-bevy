@@ -1,0 +1,29 @@
+[workspace]
+members = [".", "xtask"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97.1"
+license = "MIT OR Apache-2.0"
+
+[package]
+name = "harbor-game"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+bevy = { version = "0.20.1", default-features = false, features = [
+    "async_executor",
+    "bevy_core_pipeline",
+    "bevy_log",
+    "bevy_sprite_render",
+    "bevy_ui_render",
+    "bevy_winit",
+    "default_font",
+    "wayland",
+] }
+harbor-bevy = { git = "https://github.com/caniko/harbor-bevy.git", branch = "trunk", features = ["core", "ui"] }

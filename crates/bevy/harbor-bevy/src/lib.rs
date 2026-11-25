@@ -4,13 +4,13 @@
 //! `veritasium-observers` is separate and requires a consumer-supplied Bevy patch.
 
 #[cfg(feature = "core")]
-pub use harbor_bevy_core as core;
+pub use harbor_bevy_core::{self as core, HarborCorePlugin};
 #[cfg(feature = "diagnostics")]
 pub use harbor_bevy_diagnostics as diagnostics;
 #[cfg(feature = "telemetry")]
 pub use harbor_bevy_telemetry as telemetry;
 #[cfg(feature = "ui")]
-pub use harbor_bevy_ui as ui;
+pub use harbor_bevy_ui::{self as ui, HarborUiPlugin};
 #[cfg(feature = "thespan")]
 pub use thespan_bevy as thespan;
 
