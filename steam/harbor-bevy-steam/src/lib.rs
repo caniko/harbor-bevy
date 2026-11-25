@@ -1,10 +1,9 @@
-//! Wave 4 Steam isolation until `bevy-steamworks` 0.18 and `steam-pressure`
-//! 0.2.0 are available on crates.io. This stub links no Steam dependencies.
+//! Steam adapters for Stock Bevy. Without the `steam` feature, no Steam SDK is linked.
+//!
+//! Applications own Steam initialization, ticket exchange, and save scheduling.
+//! The adapters do not require an application state machine or save schema.
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn builds_as_its_own_package() {
-        assert_eq!(env!("CARGO_PKG_NAME"), "harbor-bevy-steam");
-    }
-}
+pub mod attestation;
+pub mod cloud;
+pub mod invite_ui;
+pub mod watchdog;

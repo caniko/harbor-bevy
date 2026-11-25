@@ -1,0 +1,25 @@
+[package]
+name = "harbor-bevy-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Shared application utilities for Bevy"
+
+[features]
+default = []
+# Requires a consumer-supplied Veritasium patch. Not supported by Stock Bevy.
+veritasium-observers = []
+
+[dependencies]
+bevy = { workspace = true, features = ["std", "bevy_log"] }
+dirs.workspace = true
+rkyv.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true

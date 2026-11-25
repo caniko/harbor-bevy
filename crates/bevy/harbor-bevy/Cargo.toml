@@ -1,0 +1,54 @@
+[package]
+name = "harbor-bevy"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+description = "Feature-gated facade for Harbor's Bevy plugins and platform utilities"
+
+[features]
+default = ["core"]
+core = ["dep:harbor-bevy-core"]
+thespan = ["dep:thespan_bevy"]
+ui = ["dep:harbor-bevy-ui"]
+diagnostics = ["dep:harbor-bevy-diagnostics", "harbor-bevy-diagnostics?/bevy"]
+telemetry = ["dep:harbor-bevy-telemetry"]
+platform = [
+    "dep:localization-core",
+    "dep:parental-controls",
+    "dep:trust-safety",
+    "dep:platform-attestation",
+    "dep:diagnostics-policy",
+    "dep:release-metadata",
+    "dep:http-client",
+    "dep:certification-core",
+    "dep:p2p-integrity",
+    "dep:telemetry-protocol",
+    "dep:telemetry-client",
+]
+# Enable only when the consumer supplies the Veritasium Bevy patch.
+veritasium-observers = ["harbor-bevy-core?/veritasium-observers"]
+full = ["core", "thespan", "ui", "diagnostics", "telemetry", "platform"]
+
+[dependencies]
+harbor-bevy-core = { path = "../harbor-bevy-core", version = "0.1.0", optional = true }
+harbor-bevy-diagnostics = { path = "../harbor-bevy-diagnostics", version = "0.1.0", optional = true }
+harbor-bevy-telemetry = { path = "../harbor-bevy-telemetry", version = "0.1.0", optional = true }
+harbor-bevy-ui = { path = "../harbor-bevy-ui", version = "0.1.0", optional = true }
+thespan_bevy = { path = "../thespan_bevy", version = "0.1.0", optional = true }
+certification-core = { path = "../../platform/certification-core", version = "0.1.0", optional = true }
+diagnostics-policy = { path = "../../platform/diagnostics-policy", version = "0.1.0", optional = true }
+http-client = { path = "../../platform/http-client", version = "0.1.0", optional = true }
+localization-core = { path = "../../platform/localization-core", version = "0.1.0", optional = true }
+p2p-integrity = { path = "../../platform/p2p-integrity", version = "0.1.0", optional = true }
+parental-controls = { path = "../../platform/parental-controls", version = "0.1.0", optional = true }
+platform-attestation = { path = "../../platform/platform-attestation", version = "0.1.0", optional = true }
+release-metadata = { path = "../../platform/release-metadata", version = "0.1.0", optional = true }
+telemetry-client = { path = "../../platform/telemetry-client", version = "0.1.0", optional = true }
+telemetry-protocol = { path = "../../platform/telemetry-protocol", version = "0.1.0", optional = true }
+trust-safety = { path = "../../platform/trust-safety", version = "0.1.0", optional = true }
+
+[lints]
+workspace = true

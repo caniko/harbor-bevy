@@ -1,0 +1,25 @@
+[package]
+name = "harbor-bevy-ui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+description = "Viewport, layout, and window utilities for Bevy UI"
+
+[dependencies]
+bevy = { workspace = true, features = ["std", "bevy_ui", "ui_picking"] }
+rkyv = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[features]
+default = []
+rkyv = ["dep:rkyv"]
+serde = ["dep:serde"]
+
+[lints]
+workspace = true

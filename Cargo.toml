@@ -26,6 +26,11 @@ members = [
     "crates/net/veritasium_wire",
 
     # Layer 2 — Stock-tier Bevy 0.20.1 plugins.
+    "crates/bevy/harbor-bevy",
+    "crates/bevy/harbor-bevy-core",
+    "crates/bevy/harbor-bevy-diagnostics",
+    "crates/bevy/harbor-bevy-telemetry",
+    "crates/bevy/harbor-bevy-ui",
     "crates/bevy/thespan_bevy",
 ]
 exclude = ["veritasium", "steam", "crates/tools"]

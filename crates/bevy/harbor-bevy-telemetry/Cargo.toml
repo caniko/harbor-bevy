@@ -1,0 +1,24 @@
+[package]
+name = "harbor-bevy-telemetry"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Consent-gated session telemetry for Bevy"
+
+[dependencies]
+bevy = { workspace = true, features = ["std", "bevy_log"] }
+diagnostics-policy = { path = "../../platform/diagnostics-policy", version = "0.1.0" }
+rkyv.workspace = true
+telemetry-client = { path = "../../platform/telemetry-client", version = "0.1.0" }
+telemetry-protocol = { path = "../../platform/telemetry-protocol", version = "0.1.0" }
+thiserror.workspace = true
+tokio = { workspace = true, features = ["macros"] }
+uuid.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+
+[lints]
+workspace = true

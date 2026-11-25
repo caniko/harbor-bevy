@@ -5,7 +5,23 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+description = "Steam integration plugins and adapters for Bevy"
 publish = false
+
+[features]
+default = []
+steam = ["dep:steam-pressure", "steam-pressure/steam", "dep:bevy-steamworks"]
+
+[dependencies]
+bevy = { version = "0.20.1", default-features = false, features = ["std", "bevy_log", "bevy_state", "bevy_color", "bevy_text", "bevy_ui", "bevy_ui_widgets"] }
+harbor-bevy-core = { path = "../../crates/bevy/harbor-bevy-core" }
+platform-attestation = { path = "../../crates/platform/platform-attestation" }
+rkyv = "0.8.17"
+thiserror = "2.0"
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+bevy-steamworks = { git = "https://github.com/caniko/bevy-steamworks.git", rev = "493cce8779e742bd56e6359a94f10a6196a85dda", optional = true }
+steam-pressure = { git = "https://github.com/caniko/rs-steam-pressure.git", rev = "bd0ab9786c1bf694f14254034a8ecffda13c1d27", default-features = false, optional = true }
 
 [lints]
 workspace = true

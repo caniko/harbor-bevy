@@ -41,50 +41,65 @@ STOCK_ALLOWED_LOCAL_PATCHES = {
     "libp2p-dns": {"path": "crates/net/libp2p-dns-disabled", "version": "0.44.0"},
     "libp2p-mdns": {"path": "crates/net/libp2p-mdns-disabled", "version": "0.48.0"},
 }
+STEAM_BEVY_ADAPTER = "bevy-steamworks"
+STEAM_GIT_PINS = {
+    ("steam-pressure",
+     "git+https://github.com/caniko/rs-steam-pressure.git"
+     "?rev=bd0ab9786c1bf694f14254034a8ecffda13c1d27#bd0ab9786c1bf694f14254034a8ecffda13c1d27"),
+    (STEAM_BEVY_ADAPTER,
+     "git+https://github.com/caniko/bevy-steamworks.git"
+     "?rev=493cce8779e742bd56e6359a94f10a6196a85dda#493cce8779e742bd56e6359a94f10a6196a85dda"),
+}
 
 
-def check_stock_like(workspace, expected_locals, allowed_local_patches):
+def check_git_pins(workspace, location, pkgs, expected):
+    actual = {(p["name"], p["source"]) for p in pkgs if (p.get("source") or "").startswith("git+")}
+    require(actual == expected,
+            f"{workspace}: {location} Git pins: missing {sorted(expected - actual)}; "
+            f"unexpected {sorted(actual - expected)}")
+
+
+def check_stock_like(workspace, expected_locals, allowed_local_patches, git_pins=frozenset()):
     manifest = read_toml(workspace / "Cargo.toml")
     lock = read_toml(workspace / "Cargo.lock")
-    patch_tables = manifest.get("patch", {})
-    if allowed_local_patches:
-        require(set(patch_tables.keys()) <= {"crates-io"},
-                f"{workspace}: unexpected patch sources: {sorted(patch_tables)}")
-        crates_io_patches = patch_tables.get("crates-io", {})
-        require(crates_io_patches == allowed_local_patches,
-                f"{workspace}: unexpected [patch.crates-io]: {crates_io_patches}")
-        require(not (set(crates_io_patches) & ENGINE),
-                f"{workspace}: Bevy engine crate patched in stock workspace")
-    else:
-        require(not patch_tables and not lock.get("patch"),
-                f"{workspace}: unexpected patches")
-    require(all(not p.get("source", "").startswith("git+") for p in lock["package"]),
-            f"{workspace}: Git dependency in lockfile")
+    expected_patches = {"crates-io": allowed_local_patches} if allowed_local_patches else {}
+    require(manifest.get("patch", {}) == expected_patches and not lock.get("patch"),
+            f"{workspace}: unexpected patches in manifest or lockfile")
+    check_git_pins(workspace, "lockfile", lock["package"], git_pins)
     graph = packages(workspace)
+    check_git_pins(workspace, "resolved graph",
+                   (p for ids in graph.values() for p in ids.values()), git_pins)
+    require("bevy" in graph, f"{workspace}: Bevy not resolved")
+    bevy_count = 0
     for name, ids in graph.items():
-        require(not any((p["source"] or "").startswith("git+") for p in ids.values()),
-                f"{workspace}: Git dependency {name}")
         if name in ENGINE or name.startswith("bevy"):
             require(len(ids) == 1, f"{workspace}: duplicate {name}: {list(ids)}")
             pkg = next(iter(ids.values()))
-            if name in ENGINE:
+            if name == STEAM_BEVY_ADAPTER and git_pins:
+                require(pkg["version"] == "0.18.0", f"{workspace}: expected {name} 0.18.0: {pkg['id']}")
+            else:
                 require((pkg["version"], pkg["source"]) == ("0.20.1", CRATES_IO),
                         f"{workspace}: expected crates.io Bevy 0.20.1 for {name}: {pkg['id']}")
+                bevy_count += 1
     for expected in expected_locals:
         ids = graph[expected]
         require(len(ids) == 1 and next(iter(ids.values()))["source"] is None,
                 f"{workspace}: expected one local {expected}: {list(ids)}")
-    return len(ENGINE & graph.keys())
+    return bevy_count
 
 
+stock_locals = (
+    "veritasium_wire", "thespan", "thespan_bevy", "harbor-bevy-core", "harbor-bevy-ui",
+    "harbor-bevy-diagnostics", "harbor-bevy-telemetry", "harbor-bevy",
+)
 stock_bevy = check_stock_like(
     Path("."),
-    ("veritasium_wire", "thespan", "thespan_bevy"),
+    stock_locals,
     STOCK_ALLOWED_LOCAL_PATCHES,
 )
 print(
-    f"Stock: no Git dependencies; only local libp2p path patches; "
-    f"{stock_bevy} crates.io Bevy 0.20.1 identities; one local veritasium_wire/thespan/thespan_bevy",
+    f"Stock: no Git dependencies or Veritasium patches; only local libp2p path patches; "
+    f"{stock_bevy} crates.io Bevy 0.20.1 identities; one local ID each for {', '.join(stock_locals)}",
     flush=True,
 )
 
@@ -113,8 +128,13 @@ for name in ("veritasium_wire", "veritasium_replicated", "veritasium_replicated_
 print(f"Fork: 74 patches; {len(resolved_engine)} resolved Bevy identities; one of each local crate",
       flush=True)
 
-check_stock_like(Path("steam"), ("harbor-bevy-steam",), {})
-print("Steam: no Git dependencies or patches; one local harbor-bevy-steam", flush=True)
+steam_locals = ("harbor-bevy-steam", "harbor-bevy-core", "platform-attestation")
+steam_bevy = check_stock_like(Path("steam"), steam_locals, {}, STEAM_GIT_PINS)
+print(
+    f"Steam: no patches; exactly two pinned Git dependencies (steam-pressure and bevy-steamworks 0.18.0); "
+    f"{steam_bevy} crates.io Bevy 0.20.1 identities; one local ID each for {', '.join(steam_locals)}",
+    flush=True,
+)
 
 tools = Path("crates/tools")
 tools_manifest = read_toml(tools / "Cargo.toml")
