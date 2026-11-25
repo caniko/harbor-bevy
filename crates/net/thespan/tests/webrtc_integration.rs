@@ -2,8 +2,9 @@
 
 use std::time::{Duration, Instant};
 
+use thespan::actor::commands::NetworkCommand;
 #[cfg(feature = "legacy-raw-codec")]
-use thespan::actor::commands::{NetworkCommand, SendTarget};
+use thespan::actor::commands::SendTarget;
 use thespan::actor::events::ActorEvent;
 use thespan::config::{TransportType, WebRtcConfig};
 use thespan::handle::NetworkHandle;
@@ -100,42 +101,31 @@ fn loopback_addr(listen_addr: Multiaddr) -> Multiaddr {
         .expect("valid loopback WebRTC multiaddr")
 }
 
+fn spawn_peer(dial_addr: Option<Multiaddr>) -> ActorGuard {
+    ActorGuard::new(
+        thespan::spawn_network_actor_with_keypair(
+            TransportType::WebRtc(WebRtcConfig {
+                listen_port: 0,
+                protocol: "/thespan/webrtc-e2e/1.0.0".into(),
+                dial_addr,
+                gossipsub_enabled: false,
+                certificate_pem: None,
+            }),
+            thespan::identity::Keypair::generate_ed25519(),
+            None,
+        )
+        .expect("spawn WebRTC peer"),
+    )
+}
+
 #[test]
 fn webrtc_direct_actors_connect() {
     let _ = env_logger::builder().is_test(true).try_init();
 
-    let peer_a = ActorGuard::new(
-        thespan::spawn_network_actor_with_keypair(
-            TransportType::WebRtc(WebRtcConfig {
-                listen_port: 0,
-                protocol: "/thespan/webrtc-e2e/1.0.0".into(),
-                dial_addr: None,
-                gossipsub_enabled: false,
-                certificate_pem: None,
-            }),
-            thespan::identity::Keypair::generate_ed25519(),
-            None,
-        )
-        .expect("spawn WebRTC peer A"),
-    );
-
+    let peer_a = spawn_peer(None);
     let listen_addr = wait_for_listen_addr(peer_a.handle(), Duration::from_secs(10));
     let dial_addr = loopback_addr(listen_addr);
-
-    let peer_b = ActorGuard::new(
-        thespan::spawn_network_actor_with_keypair(
-            TransportType::WebRtc(WebRtcConfig {
-                listen_port: 0,
-                protocol: "/thespan/webrtc-e2e/1.0.0".into(),
-                dial_addr: Some(dial_addr),
-                gossipsub_enabled: false,
-                certificate_pem: None,
-            }),
-            thespan::identity::Keypair::generate_ed25519(),
-            None,
-        )
-        .expect("spawn WebRTC peer B"),
-    );
+    let peer_b = spawn_peer(Some(dial_addr));
 
     let peer_b_id = wait_for_peer_connected(peer_a.handle(), Duration::from_secs(10));
     let peer_a_id = wait_for_peer_connected(peer_b.handle(), Duration::from_secs(10));
@@ -158,4 +148,33 @@ fn webrtc_direct_actors_connect() {
             payload
         );
     }
+}
+
+#[test]
+fn webrtc_direct_actors_connect_on_dial_command() {
+    let _ = env_logger::builder().is_test(true).try_init();
+
+    let listener = spawn_peer(None);
+    let dialer = spawn_peer(None);
+    let timeout = Duration::from_secs(10);
+    let listener = listener.handle();
+    let dialer = dialer.handle();
+    let addr = loopback_addr(wait_for_listen_addr(listener, timeout));
+    wait_for_listen_addr(dialer, timeout);
+
+    dialer
+        .send(NetworkCommand::Dial {
+            peer_id: listener.local_peer_id,
+            addr,
+        })
+        .expect("queue post-startup dial");
+
+    assert_eq!(
+        wait_for_peer_connected(dialer, timeout),
+        listener.local_peer_id
+    );
+    assert_eq!(
+        wait_for_peer_connected(listener, timeout),
+        dialer.local_peer_id
+    );
 }

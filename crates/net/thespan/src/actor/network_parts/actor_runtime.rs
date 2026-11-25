@@ -946,7 +946,11 @@ impl NetworkActor {
             self.swarm.dial(addr.clone()).map_err(|err| err.to_string())
         } else {
             self.swarm.add_peer_address(peer_id, addr.clone());
-            self.swarm.dial(peer_id).map_err(|err| err.to_string())
+            // The behaviour's address book may be absent without the legacy codec.
+            let opts = DialOpts::peer_id(peer_id)
+                .addresses(vec![addr.clone()])
+                .build();
+            self.swarm.dial(opts).map_err(|err| err.to_string())
         }
     }
 
