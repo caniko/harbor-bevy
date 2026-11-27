@@ -3,28 +3,26 @@
 [![crates.io](https://img.shields.io/crates/v/libp2p-steam-transport.svg)](https://crates.io/crates/libp2p-steam-transport)
 [![docs.rs](https://docs.rs/libp2p-steam-transport/badge.svg)](https://docs.rs/libp2p-steam-transport)
 
-A [libp2p](https://libp2p.io/) `Transport` implementation over
+A [libp2p](https://libp2p.io/) `Transport` over
 [Steam Networking Sockets](https://partner.steamgames.com/doc/api/ISteamNetworkingSockets)
-(`ISteamNetworkingSockets`), enabling peer-to-peer connections relayed through
-Valve's Steam network.
+(`ISteamNetworkingSockets`) for peer-to-peer connections over Valve's Steam relay.
 
 ## Overview
 
-This crate provides `SteamTransport`, which implements `libp2p_core::Transport`.
-It can be composed with Noise (for PeerId-based identity) and Yamux (for
-substream multiplexing) just like any other libp2p transport.
+`SteamTransport` implements `libp2p_core::Transport` and composes with Noise
+for PeerId-based identity and Yamux for substream multiplexing.
 
 ### Architecture
 
 - **Listen path** &mdash; A `spawn_blocking` bridge blocks on
   `ListenSocket::events()` (0 CPU while idle), forwarding accepted connections
   via `tokio::sync::mpsc`.
-- **Dial path** &mdash; A `spawn_blocking` task polls `get_connection_info()` at
-  16 ms intervals until the connection is established or fails.
+- **Dial path** &mdash; A `spawn_blocking` task polls `get_connection_info()`
+  every 16 ms until the connection succeeds or fails.
 - **Stream I/O** &mdash; 16 ms read-polling tick, synchronous writes with
   `RELIABLE_NO_NAGLE` and backpressure on `LimitExceeded`.
-- **Addressing** &mdash; Uses `/memory/<steam_id>` multiaddr encoding, reusing
-  the existing `Protocol::Memory(u64)` from the multiaddr spec.
+- **Addressing** &mdash; `/memory/<steam_id>` reuses `Protocol::Memory(u64)`
+  from the multiaddr spec.
 
 ## Usage
 
@@ -57,21 +55,19 @@ Requires Rust 1.85+ (edition 2024).
 
 ## Steam Networking: Terms of Service
 
-This crate uses Valve's Steam Networking relay infrastructure
-(`ISteamNetworkingSockets`). By using it you agree to the
+Using Valve's Steam Networking relay (`ISteamNetworkingSockets`) means
+agreeing to the
 [Steam API Terms of Use](https://partner.steamgames.com/doc/sdk/api_terms).
-
-Key points to be aware of:
 
 - Steam relay access requires a valid **Steamworks partner account** and a
   published (or in-development) Steam application.
-- Relay traffic is routed through Valve's global network; Valve's
+- Relay traffic crosses Valve's global network; Valve's
   [privacy policy](https://store.steampowered.com/privacy_agreement/) applies
   to data transiting their infrastructure.
-- The relay service is provided at no additional cost to Steamworks partners,
-  but Valve reserves the right to rate-limit or revoke access for abuse.
+- The relay costs Steamworks partners nothing extra, but Valve reserves the
+  right to rate-limit or revoke access for abuse.
 
-For full details see the Steamworks documentation:
+Steamworks documentation:
 
 - [ISteamNetworkingSockets](https://partner.steamgames.com/doc/api/ISteamNetworkingSockets)
 - [Steam Networking overview](https://partner.steamgames.com/doc/features/multiplayer/networking)

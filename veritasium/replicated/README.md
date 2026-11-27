@@ -7,21 +7,19 @@ captures their post-images as ordered, hash-chained transactions, and exposes
 transport-neutral packet helpers for multiplayer frameworks to bridge into
 their own sessions, channels, and liveness policy.
 
-It is the replication substrate extracted from a peer-to-peer game, designed as
-a general-purpose building block for lockstep or rollback-style Bevy projects.
-That general-purpose claim is currently demonstrated by a networked Bevy game
-and the in-tree grid-painter example; it is **not yet externally
-adopted** because no crates.io release exists for outside projects to consume.
+Extracted from a peer-to-peer game, the crate is a general-purpose building
+block for lockstep or rollback-style Bevy projects. A networked Bevy game and
+the in-tree grid-painter example demonstrate that use. There is no crates.io
+release for outside projects to consume, so there is **no external adoption yet**.
 
 > **Status: pre-release, not yet on crates.io.** The crate is feature-complete
 > and dogfooded, but it is designed around the veritasium fork's mediated write
 > gate (`MediatedAccess` / `MediatedMut`) — a deliberate permanent divergence
 > from released Bevy. See
 > [Vendor coupling (permanent)](#vendor-coupling-permanent).
-> A crates.io publish would require a future released Bevy to independently ship
-> an equivalent mediated write gate. The `0.1.x` framing is therefore
-> dogfooding-only until that hypothetical convergence occurs and a published
-> artifact receives confirmed external adoption. See
+> A crates.io release requires Bevy to independently ship an equivalent gate.
+> The `0.1.x` framing stays dogfooding-only unless that happens and external
+> adoption of a published artifact is confirmed. See
 > [`docs/dogfooding-release-rationale.md`](docs/dogfooding-release-rationale.md).
 
 [Bevy]: https://bevyengine.org
@@ -32,20 +30,19 @@ adopted** because no crates.io release exists for outside projects to consume.
   (the derive supplies the `Component` impl and an `rkyv` wire codec).
 - **`#[derive(ReplicatedResource)]`** — opt a singleton resource into explicit
   replicated insert/modify/remove transactions.
-- **`ResourceRegistry::registered()`** — inspect the registered singleton
-  resources and their stable `ResourceId` values; duplicate resource ids fail
-  at registration time.
-- **`MediatedMut<T>` capture** — replicated in-place mutations go through Bevy's
-  closure-only `MediatedMut<T>`; the engine captures the post-image and records
-  it into the current frame transaction automatically.
+- **`ResourceRegistry::registered()`** — list registered singleton resources
+  and their stable `ResourceId` values. Registration rejects duplicate IDs.
+- **`MediatedMut<T>` capture** — mutate in place through Bevy's closure-only
+  `MediatedMut<T>`; the engine records the post-image in the current frame
+  transaction automatically.
 - **`ReplicationChain`** — a rolling blake3/sha256 hash over the canonical
   transaction stream, for divergence detection between peers.
 - **Canonical ordering** — a deterministic total order over concurrently
   received transactions, so all peers apply them identically.
 - **Wire encode/decode** — compact `rkyv`-backed transaction and chain-hash
   envelopes.
-- **Generic identity** — the crate is generic over a consumer-supplied
-  `NetworkId`; it carries no game-specific identity types.
+- **Generic identity** — you can supply your own `NetworkId`; the crate has no
+  game-specific identity types.
 - **Two shipped passive models** — `CanonicalEventual` for equal-peer
   convergence and `AuthorityOrdered` for single-writer total ordering.
 - **Foreign-transport convention** — `interop` drains `GossipOutbox` /
@@ -55,9 +52,9 @@ adopted** because no crates.io release exists for outside projects to consume.
 
 ## Framework-author transport boundary
 
-`bevy_replicated` does not own discovery, sockets, sessions, reconnect
-handshakes, matchmaking, or lobby authority. A multiplayer framework integrates
-by treating the crate as an ECS transaction engine:
+Use `bevy_replicated` as an ECS transaction engine. `bevy_replicated` does not
+own discovery, sockets, sessions, reconnect handshakes, matchmaking, or lobby
+authority.
 
 1. Configure `ReplicationIdentity` for the local peer and, for fixed equal-peer
    sessions, configure `ReplicationParticipants` before gameplay starts.
@@ -135,12 +132,12 @@ fn reset_clock(mut clock: ReplicatedResMut<MatchClock>) {
 }
 ```
 
-Received transactions are buffered, canonically ordered, gap-checked, and
-applied; the chain hash can be exchanged between peers to detect divergence.
+The crate buffers received transactions, orders them canonically, checks for
+gaps, and applies them. Peers can exchange chain hashes to detect divergence.
 
-The current pre-release wire/domain version is v3. This was a coordinated
-resource-target cutover: old v1/v2 transaction bytes are rejected loudly, and
-the crate keeps representative transaction golden coverage.
+The pre-release wire/domain version is v3, a coordinated resource-target
+cutover. The crate explicitly rejects v1/v2 transaction bytes and retains
+golden tests for representative transactions.
 
 `FrameRollback` is intentionally **not** listed as a shipped layer-3 model. The
 in-tree acid test rendered a Boundary verdict: rollback can consume lower-layer
@@ -158,38 +155,33 @@ encode/decode failures, incompatible wire versions, and
 `rkyv`, canonical-ordering, and mediated-access variants preserve their original
 `Error::source()` chain.
 
-Fatal apply or flush failures do not panic silently. `ReplicatedPlugin`
-initializes a `ReplicationFatalQueue`, logs fatal replication failures, and
-queues the typed `ReplicationError` for the embedding game to inspect, drain,
-or bridge into its own shutdown policy.
+`ReplicatedPlugin` initializes a `ReplicationFatalQueue`. On fatal apply or
+flush failures, it logs the failure rather than panicking silently and queues
+the typed `ReplicationError` for the game to inspect, drain, or pass to its
+shutdown policy.
 
 ## Architecture
 
 ### Inline source-of-truth policy
 
-Two small primitives — a rolling **mutation log** (`src/mutation_log.rs`) and a
-schedule **sync barrier** (`src/sync_barrier.rs`) — are **inlined** into this
-crate rather than imported from an engine fork. They were prototyped as
-`bevy_ecs` modules, but the narrowed deterministic-mutation RFC does **not**
-propose them for upstream Bevy, so the inlined copies are their permanent home
-here. Both are self-contained against stock Bevy (`mutation_log` uses only
-`std` + `blake3`; `sync_barrier` uses only the public `World::flush`).
+The rolling **mutation log** (`src/mutation_log.rs`) and schedule **sync
+barrier** (`src/sync_barrier.rs`) live here permanently, not in an engine
+fork. They began as `bevy_ecs` modules, but the narrowed deterministic-mutation
+RFC does not propose them for upstream Bevy. Both work with stock Bevy:
+`mutation_log` uses only `std` + `blake3`, and `sync_barrier` uses only the public
+`World::flush`.
 
-The copies are kept faithful to their prototype API — including surface this
-crate does not currently exercise — so that, if an upstream equivalent ever
-lands, they can be swapped out cleanly. This is why `mutation_log` carries a
-module-level `#![allow(dead_code)]` (its full primitive surface is retained but
-not all of it is used yet); `sync_barrier`'s surface is fully exercised and
-needs no such allow.
+Both retain the full prototype API so an upstream equivalent could replace
+them cleanly. `mutation_log` uses a module-level `#![allow(dead_code)]` for the
+parts this crate doesn't use yet. The crate uses all of `sync_barrier`, so it
+needs no such allowance.
 
 ### Vendor coupling (permanent)
 
-The **one** remaining coupling to a Bevy fork is the *mediated component write
-gate*: `MediatedAccess`, `MediatedMutable`, and `MediatedMut`. These give
-replicated components a compile-time guarantee that they can only be written
-through the mediated `MediatedMut` path (a plain `Query<&mut T>` is rejected at
-compile time), which is what makes the recorded transaction stream a complete
-audit of every replicated mutation.
+Only the *mediated component write gate* requires a Bevy fork: `MediatedAccess`,
+`MediatedMutable`, and `MediatedMut`. The compiler requires writes to replicated
+components to go through `MediatedMut` and rejects plain `Query<&mut T>`. The
+recorded transaction stream thus audits every replicated mutation.
 
 This gate is **not inlinable** into a downstream crate: it adds a variant to the
 *sealed* `ComponentMutability` trait, adds an associated const to the
