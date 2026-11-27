@@ -219,6 +219,48 @@ fn app_exit_flushes_a_partial_batch() {
     assert_eq!(std::fs::read_dir(&dir.0).unwrap().count(), 1);
 }
 
+#[test]
+fn exit_flush_persists_events_recorded_in_last() {
+    use bevy::prelude::*;
+
+    let dir = TestDir::new();
+    let config = TelemetryConfig {
+        storage_dir: Some(dir.0.clone()),
+        ..config()
+    };
+    let mut app = App::new();
+    app.insert_resource(config)
+        .add_plugins(TelemetryPlugin::<u32>::new(session()))
+        .add_systems(
+            Last,
+            (|mut exit: MessageReader<AppExit>,
+              config: Res<TelemetryConfig>,
+              mut recorder: ResMut<SessionRecorder<u32>>| {
+                if exit.read().count() != 0 {
+                    recorder.record(&config, 42).unwrap();
+                }
+            })
+            .before(TelemetrySystems::ExitFlush),
+        );
+
+    app.update();
+    assert_eq!(std::fs::read_dir(&dir.0).unwrap().count(), 0);
+    app.world_mut().write_message(AppExit::Success);
+    app.update();
+
+    let paths: Vec<_> = std::fs::read_dir(&dir.0).unwrap().collect();
+    let [archive] = paths.as_slice() else {
+        panic!("expected exactly one archive");
+    };
+    let bytes = std::fs::read(archive.as_ref().unwrap().path()).unwrap();
+    let mut aligned = rkyv::util::AlignedVec::<16>::new();
+    aligned.extend_from_slice(&bytes);
+    let batch = rkyv::from_bytes::<Batch<u32>, rkyv::rancor::Error>(&aligned).unwrap();
+    assert_eq!(batch.events.len(), 1);
+    assert_eq!(batch.events[0].event, 42);
+    assert_eq!(app.should_exit(), Some(AppExit::Success));
+}
+
 #[derive(Clone, Copy)]
 enum Reply {
     Retry,

@@ -10,8 +10,43 @@ use bevy::{
     window::{PrimaryWindow, WindowResized},
 };
 
+use crate::pointer_router::LogicalRect;
+
 const REFERENCE_SIZE: Vec2 = Vec2::new(1280.0, 720.0);
 const DEFAULT_SETTLE: Duration = Duration::from_millis(120);
+
+/// Insets from the drawable area's edges, in logical pixels.
+#[derive(Resource, Debug, Default, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "rkyv",
+    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
+)]
+pub struct SafeAreaInsets {
+    pub top: f32,
+    pub right: f32,
+    pub bottom: f32,
+    pub left: f32,
+}
+
+impl SafeAreaInsets {
+    /// Usable bounds relative to the drawable area's origin. Negative and NaN
+    /// insets count as zero; oversized insets collapse the axis without inversion.
+    pub fn usable_rect(self, logical_size: Vec2) -> LogicalRect {
+        fn axis(size: f32, leading: f32, trailing: f32) -> (f32, f32) {
+            let size = if size.is_finite() { size.max(0.0) } else { 0.0 };
+            let start = leading.max(0.0).min(size);
+            (start, (size - trailing.max(0.0)).max(start))
+        }
+
+        let (left, right) = axis(logical_size.x, self.left, self.right);
+        let (top, bottom) = axis(logical_size.y, self.top, self.bottom);
+        LogicalRect {
+            min: [left, top],
+            max: [right, bottom],
+        }
+    }
+}
 
 /// Sizing policy for the primary viewport. Initialize before adding
 /// [`ViewportPlugin`], or modify it while the app is running.
@@ -117,6 +152,11 @@ pub struct ViewportMetrics {
 }
 
 impl ViewportMetrics {
+    /// Usable logical bounds relative to this viewport's drawable origin.
+    pub fn usable_rect(&self, insets: SafeAreaInsets) -> LogicalRect {
+        insets.usable_rect(self.logical_size)
+    }
+
     /// Build a snapshot from the drawable physical size and its DPI scale.
     /// Returns `None` for invalid scale or a minimized viewport.
     pub fn from_physical_size(
@@ -428,6 +468,7 @@ impl Plugin for ViewportPlugin {
         app.init_resource::<ViewportConfig>()
             .init_resource::<DisplaySettings>()
             .init_resource::<CurrentViewport>()
+            .init_resource::<SafeAreaInsets>()
             .init_resource::<PendingViewportResize>()
             .init_resource::<ViewportSettleOverride>()
             .init_resource::<LayoutVersion>()

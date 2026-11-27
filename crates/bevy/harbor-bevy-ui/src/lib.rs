@@ -2,6 +2,8 @@
 //! windowing backends, layout observers, and action identifiers.
 
 pub mod action_id;
+pub mod focus_bounds;
+pub mod pointer_router;
 pub mod reactive;
 pub mod scroll;
 pub mod toast;

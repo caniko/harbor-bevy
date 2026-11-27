@@ -22,10 +22,13 @@
 //! 4. Use `WitnessProtocol` for third-party verification
 
 pub mod attestation;
+pub mod catalog;
 pub mod commitment;
+pub mod compact_chain;
 pub mod recording;
 pub mod threshold;
 pub mod traits;
+pub mod versioned_frame;
 pub mod witness;
 
 // Re-export main types at crate root

@@ -29,6 +29,7 @@
 pub mod app;
 pub mod batch;
 pub mod bug_report;
+pub mod cadence_audit;
 pub mod fault_injector;
 pub mod matrix_report;
 pub mod peer_cluster;
@@ -40,6 +41,7 @@ pub use batch::{
     BatchConfig, BatchReport, BatchRunner, BatchSession, SessionOutcome, SessionResult,
 };
 pub use bug_report::{FieldDifference, SessionBugReport, SnapshotField, StateSnapshot};
+pub use cadence_audit::CadenceAudit;
 pub use fault_injector::{
     FaultAction, FaultInjectionEnvelope, FaultInjector, FaultInjectorPlugin, FaultSync, OpKey,
     probe_fault,
@@ -48,4 +50,17 @@ pub use harbor_bevy_diagnostics::{FailureCategory, LogEntry, LogLevel, LogRingBu
 pub use matrix_report::{AxisReport, MatrixReport, ScenarioOutcome, ScenarioResult};
 pub use peer_cluster::{PeerCluster, PeerIndex};
 #[cfg(feature = "schedule-shuffle")]
-pub use schedule_shuffle::{ScheduleShuffleCase, ScheduleShuffleConfig, ScheduleShuffleReport};
+pub use schedule_shuffle::{
+    ScheduleOrderSample, ScheduleOrderVariance, ScheduleShuffleCase, ScheduleShuffleConfig,
+    ScheduleShuffleReport, TraceShuffleCase, TraceShuffleConfig, TraceShuffleReport,
+    capture_schedule_order, parse_schedule_seeds,
+};
+
+fn first_differing_tick<T: PartialEq>(baseline: &[T], actual: &[T]) -> Option<usize> {
+    baseline
+        .iter()
+        .zip(actual)
+        .position(|(a, b)| a != b)
+        .or_else(|| (baseline.len() != actual.len()).then(|| baseline.len().min(actual.len())))
+        .map(|i| i + 1)
+}

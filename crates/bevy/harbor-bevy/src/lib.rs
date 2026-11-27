@@ -14,13 +14,19 @@ pub use harbor_bevy_ui::{self as ui, HarborUiPlugin};
 #[cfg(feature = "thespan")]
 pub use thespan_bevy as thespan;
 
-/// Bevy-free platform, policy, integrity, and telemetry libraries.
+/// Platform, policy, integrity, telemetry, and Bevy bridge libraries.
 #[cfg(feature = "platform")]
 pub mod platform {
     pub use certification_core;
     pub use diagnostics_policy;
+    pub use harbor_asset_pack;
+    pub use harbor_bevy_platform;
+    pub use harbor_deterministic_rng;
     pub use http_client;
     pub use localization_core;
+    pub use monetization_policy;
+    pub use notification_policy;
+    pub use offline_action_log;
     pub use p2p_integrity;
     pub use parental_controls;
     pub use platform_attestation;

@@ -14,6 +14,7 @@ use serde::Deserialize;
 
 pub mod denylist;
 pub mod doctor;
+pub mod ktx2;
 pub mod license;
 
 #[derive(Debug, Deserialize)]

@@ -68,12 +68,15 @@ pub fn scan(root: &Path, patterns: &[String]) -> Result<Vec<Hit>> {
         if !data.contains(&0)
             && let Ok(text) = std::str::from_utf8(&data)
         {
-            hits.extend(text.lines().enumerate().filter_map(|(offset, line)| {
-                patterns.is_match(line).then(|| Hit {
-                    path: path.into(),
-                    line: offset + 1,
-                })
-            }));
+            hits.extend(
+                text.lines()
+                    .enumerate()
+                    .filter(|(_, line)| patterns.is_match(line))
+                    .map(|(offset, _)| Hit {
+                        path: path.into(),
+                        line: offset + 1,
+                    }),
+            );
         }
     }
     hits.sort_by(|a, b| (&a.path, a.line).cmp(&(&b.path, b.line)));

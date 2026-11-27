@@ -1,0 +1,16 @@
+[package]
+name = "harbor-bevy-platform"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Platform bridge traits, haptic cues, mock implementations, and desktop plugin for Bevy"
+
+[dependencies]
+bevy = { workspace = true, features = ["std", "bevy_log"] }
+monetization-policy = { path = "../../platform/monetization-policy", version = "0.1.0" }
+thiserror.workspace = true
+
+[lints]
+workspace = true

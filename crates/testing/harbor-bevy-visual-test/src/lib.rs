@@ -18,6 +18,7 @@ pub mod coverage_store;
 pub mod diff;
 pub mod gpu_pin;
 pub mod pipeline;
+pub mod provenance;
 pub mod report;
 pub mod rubric;
 pub mod store_capture;
@@ -26,6 +27,10 @@ pub mod worker_sidecar;
 pub use audit::AuditSpec;
 pub use capture::{CaptureConfig, CaptureTarget};
 pub use diff::Mask;
+pub use provenance::{
+    CaptureManifest, ImageProvenanceReceipt, PreparedImageReceipt, ProvenanceError,
+    VisualImageProvenance, verify_prepared_gpu_images,
+};
 pub use rubric::Rubric;
 
 #[cfg(test)]

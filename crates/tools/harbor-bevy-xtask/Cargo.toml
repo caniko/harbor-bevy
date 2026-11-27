@@ -15,10 +15,13 @@ cluster = ["dep:steampipe"]
 anyhow.workspace = true
 clap.workspace = true
 fragpipe.workspace = true
+hex = "0.4"
 regex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sha2 = "0.11"
 steampipe = { workspace = true, optional = true }
+tempfile.workspace = true
 toml.workspace = true
 
 [dev-dependencies]
