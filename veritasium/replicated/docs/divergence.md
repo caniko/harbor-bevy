@@ -1,14 +1,12 @@
 # Replication Divergence Contract
 
-`bevy_replicated` maintains a canonical transaction hash chain for every
-replicated session. The chain hashes the canonical rkyv bytes of each applied
-transaction, plus the transaction's `peer_id` and `sequence`, after the
-transaction has been accepted and applied in canonical order.
+`bevy_replicated` keeps a canonical transaction hash chain per replicated
+session. After accepting and applying a transaction in canonical order, it
+hashes the canonical rkyv bytes plus the transaction's `peer_id` and `sequence`.
 
-Two peers should have the same `(applied_count, hash)` when they have applied
-the same transaction prefix. A mismatch means the peers disagree about the
-replicated transaction history. The library reports that condition by emitting a
-`DivergenceEvent`; it does not recover automatically.
+Peers that apply the same transaction prefix should have the same
+`(applied_count, hash)`. A mismatch means they disagree on the replicated
+history. The library emits a `DivergenceEvent` but doesn't recover automatically.
 
 ## Checkpoints
 
@@ -18,12 +16,11 @@ Peers exchange `ChainHashReport` messages:
 - `applied_count`: the transaction count at the checkpoint
 - `hash`: the cumulative hash at that count
 
-The default transaction cadence is every 64 applied transactions. Apps can
-change this with `ChainHashConfig::transaction_cadence`; setting it to `0`
-disables count-based reports.
+By default, peers report every 64 applied transactions. Change the cadence
+with `ChainHashConfig::transaction_cadence`; `0` disables count-based reports.
 
-Phase-boundary reports are opt-in per Bevy state type because this library does
-not know an application's state graph. Register them with:
+The library doesn't know the application's state graph, so opt in to
+phase-boundary reports per Bevy state type:
 
 ```rust
 app.exchange_chain_hash_on_state_transition::<GameState>();
@@ -34,10 +31,10 @@ by writing a `ChainHashCheckpoint` message.
 
 ## Divergence
 
-`receive_chain_hash_report(world, report)` compares a remote report to the
-local chain. If the local peer has not reached `report.applied_count` yet, the
-report is cached and checked after later transactions apply. If the hashes
-differ, the library triggers and writes `DivergenceEvent` with:
+`receive_chain_hash_report(world, report)` compares the remote report to the
+local chain. If the local peer hasn't reached `report.applied_count`, it caches
+the report and checks it after later transactions apply. If the hashes differ,
+the library triggers and writes `DivergenceEvent` with:
 
 - `local_hash`
 - `remote_hash`
@@ -45,17 +42,16 @@ differ, the library triggers and writes `DivergenceEvent` with:
 - `applied_count_at_check`
 - `last_common_count`, when an earlier matching checkpoint is known
 
-Repeated mismatching reports from the same remote peer at the same
-`applied_count` are suppressed after the first event. The status remains
-`Mismatched`, but observers are not spammed with duplicate diagnostics for one
-checkpoint.
+The first mismatch for a remote peer and `applied_count` sets the status to
+`Mismatched`. For that peer and count, the status remains `Mismatched`; no
+further `DivergenceEvent` is triggered or written.
 
 Expected divergence:
 
 - Peers are running incompatible application protocol versions.
 - A caller intentionally allows one peer to continue after a known mismatch.
-- A peer receives a report for a future count; this is pending catch-up, not a
-  divergence until the local chain reaches that count.
+- A report for a future count is pending catch-up, not divergence before the
+  local chain reaches that count.
 
 Unexpected divergence:
 
@@ -66,7 +62,8 @@ Unexpected divergence:
 
 ## Caller Policy
 
-On `DivergenceEvent`, application code should choose a recovery policy:
+On `DivergenceEvent`, the application should choose a recovery policy;
+`bevy_replicated` does not choose for it:
 
 - Drop the session.
 - Request a full state resync.
@@ -75,15 +72,13 @@ On `DivergenceEvent`, application code should choose a recovery policy:
 - Log and continue only for audit or diagnostic applications that explicitly
   tolerate divergent replicas.
 
-`bevy_replicated` deliberately does not choose among these policies.
-
 ## Determinism
 
-The chain input is transaction-side data, not ECS state. This avoids reflection
-ordering, archetype ordering, and scheduler timing differences.
+The chain hashes transaction data, not ECS state, avoiding differences in
+reflection ordering, archetype ordering, and scheduler timing.
 
-The local test suite verifies deterministic rkyv round-trip bytes for
-`ChainHashReport` and identical hashes for peers applying the same transaction
-sequence. Cross-architecture validation must still be run on each supported
-target; this phase was validated locally on the current development host, and
-ARM validation remains a downstream CI/device responsibility.
+Local tests verify deterministic rkyv round-trip bytes for `ChainHashReport`
+and identical hashes when peers apply the same transaction sequence. This
+phase was validated on the current development host; cross-architecture
+validation still needs to run on every supported target. ARM validation
+remains a downstream CI/device responsibility.

@@ -7,17 +7,13 @@ Replaces Noise + Yamux with Steam-native encryption and lane-based multiplexing.
 
 ## What This Crate Does
 
-Steam provides peer-to-peer connections via its **Datagram Relay** (SDR) network.
-This crate wraps that into a standard libp2p `Transport` so the rest of the libp2p
-stack (request-response, piying remote actors, etc.) works without knowing it's running
-on Steam.
+A standard libp2p `Transport` carries peer-to-peer connections over Steam
+**Datagram Relay** (SDR) without changes to request-response, piying remote
+actors, or other libp2p protocols.
 
-**Key design choice**: No Noise, no Yamux.
-
-- Steam SDR already encrypts traffic — Noise would double-encrypt for zero benefit.
-- Steam's `ConfigureConnectionLanes` gives each lane independent, reliable, ordered
-  delivery — exactly what a libp2p substream needs. One lane per substream replaces
-  Yamux entirely, with zero framing overhead.
+- SDR already encrypts traffic; Noise would encrypt it twice for no benefit.
+- `ConfigureConnectionLanes` provides independent, reliable, ordered delivery
+  per lane. One lane per substream replaces Yamux without framing overhead.
 
 ```
 Before:  SteamTransport → Noise → Yamux → libp2p protocols
@@ -51,10 +47,9 @@ Transport::poll() receives the NetConnection
 TransportEvent::Incoming { upgrade: SteamStream }
 ```
 
-The `spawn_blocking` bridge is necessary because Steam delivers events via callbacks
-(triggered by `Client::run_callbacks()` on the Bevy main thread), while libp2p needs
-async `poll()`. The bridge blocks on `std::sync::mpsc::recv()` — truly zero CPU when
-no connections arrive.
+The Bevy main thread calls `Client::run_callbacks()` to deliver Steam events.
+The `spawn_blocking` bridge forwards accepted connections to libp2p's async
+`poll()` and uses no CPU while blocked on `std::sync::mpsc::recv()`.
 
 ### Dialing (outbound connections)
 
@@ -76,14 +71,14 @@ spawn_blocking thread                           ← dial.rs
 dial future resolves → SteamStream
 ```
 
-We poll instead of using callbacks because the steamworks crate's independent
-connection callback is unimplemented. 16ms polling aligns with a 60Hz game tick.
-These tasks are short-lived (~1 second for typical P2P).
+The steamworks crate doesn't implement the independent connection callback.
+Polling every 16ms aligns with a 60Hz game tick; a typical P2P dial task lasts
+about 1 second.
 
 ### After connection: handshake + muxer setup
 
-Once a raw `SteamStream` is ready, the swarm integration layer uses
-`Transport::and_then()` to bolt on identity exchange and multiplexing:
+The swarm integration layer uses `Transport::and_then()` to add identity
+exchange and multiplexing to the raw `SteamStream`:
 
 ```
 SteamStream (raw byte stream on lane 0)
@@ -106,8 +101,8 @@ StreamMuxerBox(muxer)  → libp2p swarm
 
 ## Lane Muxer: How Substreams Work
 
-Each libp2p substream gets its own Steam lane. Data goes straight through — no
-frame headers, no stream IDs. Steam guarantees reliable ordered delivery per lane.
+Each libp2p substream gets a Steam lane with reliable, ordered delivery and no
+frame headers or stream IDs.
 
 ### Opening a substream (outbound)
 
@@ -124,12 +119,12 @@ frame headers, no stream IDs. Steam guarantees reliable ordered delivery per lan
 
 ### Reading and writing
 
-- **Write**: `send_messages()` with `RELIABLE_NO_NAGLE` flag, tagged with the
-  lane's channel number. If Steam's buffer is full (backpressure), returns
+- **Write**: `send_messages()` tags the data with the lane's channel number and
+  uses `RELIABLE_NO_NAGLE`. On backpressure (full Steam buffer), the write returns
   `Pending` and retries on the next 16ms tick.
-- **Read**: Checks a per-lane `VecDeque<u8>` buffer. Data is deposited there by
-  the muxer's `poll()` method, which routes incoming messages by `msg.channel()`.
-  Uses a swap pattern (move buffer out from under the lock) to minimize contention.
+- **Read**: The muxer's `poll()` routes incoming messages by `msg.channel()` to
+  each lane's `VecDeque<u8>`. Reads check that buffer and swap it out from under
+  the lock to reduce contention.
 
 ### Closing
 
@@ -179,29 +174,26 @@ tests/
 
 ### transport.rs — The Transport Layer
 
-The entry point. `SteamTransport` manages listeners and dial futures.
-
-**Key types:**
 - `SteamTransportConfig` — the socket handle, virtual ports, and local Steam ID
-- `SteamTransport` — implements `libp2p_core::Transport` with `Output = SteamStream`
+- `SteamTransport` — the entry point; manages listeners and dial futures and
+  implements `libp2p_core::Transport` with `Output = SteamStream`
 
-**How poll() works:**
-Drains pre-queued events (NewAddress, ListenerClosed), then polls each listener's
-mpsc receiver for incoming connections. Dead listeners (bridge exited) are cleaned up.
+Polling drains queued events (NewAddress, ListenerClosed), then polls each
+listener's mpsc receiver for incoming connections and removes listeners whose
+bridges have exited.
 
 ### stream.rs — The Byte Stream
 
 A bidirectional byte stream over a single `NetConnection`.
 
-- Reads call `receive_messages()` directly. No data? Return `Pending`, retry in 16ms.
-- Writes call `send_message()` synchronously. Buffer full? Backpressure via `Pending`.
-- The `NetConnection` lives in `Arc<Mutex<>>` so the muxer can share it.
+- Reads call `receive_messages()` directly. If empty, return `Pending` and retry in 16ms.
+- Writes call `send_message()` synchronously. A full buffer signals backpressure
+  with `Pending`.
+- `Arc<Mutex<>>` lets the stream share the `NetConnection` with the muxer.
 
 ### muxer.rs — The Heart of the Crate
 
-Where Yamux replacement happens. ~710 lines covering:
-
-**Types:**
+The Yamux replacement (~710 lines):
 - `SteamLaneMuxer` — owns `Arc<Mutex<MuxerInner>>` + a 16ms tick interval
 - `MuxerInner` — connection, per-lane state (`HashMap<i32, LaneState>`), free pool,
   inbound queue
@@ -210,10 +202,9 @@ Where Yamux replacement happens. ~710 lines covering:
 - `LaneState` — per-lane buffer, waker, closed/reset flags
 - `SteamMuxerError` — ConnectionClosed, Backpressure, Steam(String), Io(Error)
 
-**`peer_id_handshake()`:**
-Exchanges PeerIds over raw Steam messages on the unconfigured connection (before
-lanes are set up). Both sides send `[u32 LE length][PeerId bytes]` and receive the
-remote's. Polls at 16ms until a message arrives.
+`peer_id_handshake()` exchanges PeerIds in raw Steam messages before lane setup.
+Both peers send `[u32 LE length][PeerId bytes]` and poll every 16ms for the
+other peer's message.
 
 ### lane.rs — Lane Configuration
 
@@ -222,8 +213,8 @@ remote's. Polls at 16ms until a message arrives.
 
 ### protocol.rs — Addressing
 
-Steam IDs are `u64`. We encode them as `/memory/<steam_id>` multiaddrs, reusing
-libp2p's existing `Protocol::Memory(u64)` variant. Two functions:
+The `/memory/<steam_id>` multiaddr reuses libp2p's `Protocol::Memory(u64)` for
+`u64` Steam IDs:
 - `steam_multiaddr(steam_id) -> Multiaddr`
 - `parse_steam_id(addr) -> Option<u64>`
 
@@ -233,12 +224,12 @@ Four variants: `ListenFailed`, `ConnectFailed(String)`, `DialCancelled`, `Steam(
 
 ### listener.rs / dial.rs — Async Bridges
 
-Both use `tokio::task::spawn_blocking` to bridge Steam's synchronous callback
-world to tokio's async world.
+Both use `tokio::task::spawn_blocking` to bridge Steam's synchronous callbacks
+to tokio's async runtime.
 
 - **listener.rs**: Blocks on `ListenSocket::events()`. Forwards accepted
-  connections via `tokio::sync::mpsc`. Exits when the receiver is dropped (which
-  happens when the listener is removed).
+  connections via `tokio::sync::mpsc`. The bridge exits when the receiver is
+  dropped, including on listener removal.
 - **dial.rs**: Polls `get_connection_info()` every 16ms until the connection reaches
   `Connected`, fails, or the receiver is dropped (dial cancelled).
 
@@ -352,8 +343,8 @@ parsing, rejection of TCP addresses, wildcard rejection).
 cargo test -p libp2p-steam-transport --test steam_loopback -- --ignored
 ```
 
-All marked `#[ignore]` so they don't break CI. Require Steam client running
-with App ID 480 (Valve's Spacewar test app — no purchase needed).
+CI skips these `#[ignore]` tests. Run the Steam client with App ID 480
+(Valve's Spacewar test app; no purchase needed).
 
 Covers:
 - Transport creation
@@ -369,35 +360,31 @@ Covers:
 
 ### Why no Noise?
 
-Steam Datagram Relay encrypts all traffic at the transport level. Adding Noise
-would double-encrypt every byte for zero security benefit and measurable latency
-cost. We still need peer identity, so a simple PeerId exchange replaces Noise's
-handshake.
+Steam Datagram Relay encrypts all traffic at the transport level. Noise would
+encrypt it twice, adding measurable latency but no security benefit. A PeerId
+exchange replaces Noise's handshake for peer identity.
 
 ### Why one lane per substream instead of custom framing?
 
-Each Steam lane with `RELIABLE` is already an independently ordered byte stream.
-That's exactly what `AsyncRead + AsyncWrite` needs. Multiplexing N streams within
-one lane (like Yamux does) would add frame headers, parsing, and head-of-line
-blocking between streams. With 1:1 mapping, there's zero overhead — data bytes
-go straight to Steam with no wrapper.
+A `RELIABLE` Steam lane already provides the independently ordered byte stream
+that `AsyncRead + AsyncWrite` needs. Multiplexing streams on one lane (as Yamux
+would) adds frame headers, parsing, and head-of-line blocking between streams.
+A 1:1 mapping sends bytes straight to Steam without a wrapper.
 
 ### Why 16ms tick (not 1ms)?
 
-The interval trades up to 16ms extra latency for fewer wake-ups in interactive
-applications.
+Interactive applications trade up to 16ms of extra latency for fewer wake-ups.
 
 ### Why spawn_blocking bridges?
 
-Steam's SDK delivers events via callbacks on whatever thread calls
-`run_callbacks()`. libp2p needs `Future`-based async. `spawn_blocking` threads
-that block on Steam's event iterators bridge this cleanly with 0 CPU idle cost.
+The Steam SDK delivers callbacks on the thread that calls `run_callbacks()`.
+`spawn_blocking` threads wait on Steam's event iterators with 0 CPU while idle
+and bridge to libp2p's `Future`-based async API.
 
 ### Why `/memory/<steam_id>` multiaddrs?
 
-Steam IDs are `u64`. The libp2p multiaddr spec already has `Protocol::Memory(u64)`
-which nobody uses for real networking. Perfect fit — no custom protocol registration
-needed.
+Steam IDs are `u64`. The libp2p multiaddr spec's `Protocol::Memory(u64)` is
+unused for real networking, so no custom protocol registration is needed.
 
 ---
 
