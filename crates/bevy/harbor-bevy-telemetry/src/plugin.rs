@@ -45,6 +45,13 @@ pub struct TelemetryPlugin<E> {
     event: PhantomData<fn() -> E>,
 }
 
+/// Scheduling hooks installed by [`TelemetryPlugin`].
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum TelemetrySystems {
+    /// Flushes the local batch on `AppExit` in `Last`. Order final event producers before this set.
+    ExitFlush,
+}
+
 impl<E> TelemetryPlugin<E> {
     pub fn new(session: SessionId) -> Self {
         Self {
@@ -69,7 +76,7 @@ where
             .init_resource::<UploadTimer>()
             .add_systems(PostStartup, clean_storage)
             .add_systems(Update, maintain::<E>)
-            .add_systems(Last, flush_on_exit::<E>);
+            .add_systems(Last, flush_on_exit::<E>.in_set(TelemetrySystems::ExitFlush));
     }
 }
 

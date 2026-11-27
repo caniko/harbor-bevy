@@ -18,7 +18,13 @@ ui = ["dep:harbor-bevy-ui"]
 diagnostics = ["dep:harbor-bevy-diagnostics", "harbor-bevy-diagnostics?/bevy"]
 telemetry = ["dep:harbor-bevy-telemetry"]
 platform = [
+  "dep:harbor-bevy-platform",
+  "dep:harbor-asset-pack",
+  "dep:harbor-deterministic-rng",
   "dep:localization-core",
+  "dep:monetization-policy",
+  "dep:notification-policy",
+  "dep:offline-action-log",
   "dep:parental-controls",
   "dep:trust-safety",
   "dep:platform-attestation",
@@ -37,13 +43,19 @@ full = ["core", "thespan", "ui", "diagnostics", "telemetry", "platform"]
 [dependencies]
 harbor-bevy-core = { path = "../harbor-bevy-core", version = "0.1.0", optional = true }
 harbor-bevy-diagnostics = { path = "../harbor-bevy-diagnostics", version = "0.1.0", optional = true }
+harbor-bevy-platform = { path = "../harbor-bevy-platform", version = "0.1.0", optional = true }
 harbor-bevy-telemetry = { path = "../harbor-bevy-telemetry", version = "0.1.0", optional = true }
 harbor-bevy-ui = { path = "../harbor-bevy-ui", version = "0.1.0", optional = true }
 thespan_bevy = { path = "../thespan_bevy", version = "0.1.0", optional = true }
 certification-core = { path = "../../platform/certification-core", version = "0.1.0", optional = true }
 diagnostics-policy = { path = "../../platform/diagnostics-policy", version = "0.1.0", optional = true }
+harbor-asset-pack = { path = "../../platform/harbor-asset-pack", version = "0.1.0", optional = true }
+harbor-deterministic-rng = { path = "../../platform/harbor-deterministic-rng", version = "0.1.0", optional = true }
 http-client = { path = "../../platform/http-client", version = "0.1.0", optional = true }
 localization-core = { path = "../../platform/localization-core", version = "0.1.0", optional = true }
+monetization-policy = { path = "../../platform/monetization-policy", version = "0.1.0", optional = true }
+notification-policy = { path = "../../platform/notification-policy", version = "0.1.0", optional = true }
+offline-action-log = { path = "../../platform/offline-action-log", version = "0.1.0", optional = true }
 p2p-integrity = { path = "../../platform/p2p-integrity", version = "0.1.0", optional = true }
 parental-controls = { path = "../../platform/parental-controls", version = "0.1.0", optional = true }
 platform-attestation = { path = "../../platform/platform-attestation", version = "0.1.0", optional = true }

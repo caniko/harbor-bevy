@@ -1,0 +1,29 @@
+[package]
+name = "monetization-policy"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Affine ad permits, IAP verification outcomes, and disjoint item pool invariants"
+
+[features]
+default = ["serde"]
+serde = ["dep:serde"]
+rkyv = ["dep:rkyv"]
+
+[dependencies]
+rkyv = { version = "0.8.17", default-features = false, features = [
+  "alloc",
+  "bytecheck",
+], optional = true }
+serde = { version = "1", default-features = false, features = [
+  "alloc",
+  "derive",
+], optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

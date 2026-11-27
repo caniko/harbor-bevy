@@ -15,7 +15,7 @@ pub mod uploader;
 
 pub use batcher::EnvelopeBatcher;
 pub use config::TelemetryConfig;
-pub use plugin::{FlushTimer, TelemetryPlugin, UploadTimer};
+pub use plugin::{FlushTimer, TelemetryPlugin, TelemetrySystems, UploadTimer};
 pub use recorder::{RecordError, SessionRecorder, StorageError, cleanup_expired};
 pub use uploader::{
     TelemetryClientTransport, TelemetryTransport, TelemetryUploader, UploadError, UploadOutcome,

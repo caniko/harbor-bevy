@@ -74,6 +74,54 @@
     program = toString program;
   };
 
+  # Keep the static build environment usable on pins that predate the receipt helpers.
+  staticMuslTargets = ["aarch64-unknown-linux-musl" "x86_64-unknown-linux-musl"];
+  staticMuslShellFallback = {
+    pkgs,
+    rustToolchain,
+    targets ? staticMuslTargets,
+    extraPackages ? [],
+    extraRustflags ? "",
+    shellHook ? "",
+    name ? "cross-arch-musl-receipt",
+  }: let
+    inherit (pkgs) lib;
+    targetEnv = target: "CARGO_TARGET_${lib.toUpper (builtins.replaceStrings ["-"] ["_"] target)}";
+    rustflags = "-C linker-flavor=ld.lld -C link-self-contained=yes" + lib.optionalString (extraRustflags != "") " ${extraRustflags}";
+  in
+    assert lib.assertMsg (builtins.isList targets && targets != [] && builtins.all (target: builtins.elem target staticMuslTargets) targets)
+    "mkStaticMuslShell requires a non-empty list of supported Linux musl targets";
+    assert lib.assertMsg (lib.unique targets == targets) "mkStaticMuslShell targets must not contain duplicates";
+    assert lib.assertMsg (builtins.all builtins.isString [extraRustflags shellHook name])
+    "mkStaticMuslShell extraRustflags, shellHook, and name must be strings";
+      pkgs.mkShellNoCC ({
+          inherit name;
+          packages =
+            [rustToolchain pkgs.binutils pkgs.file pkgs.jq pkgs.coreutils]
+            ++ lib.optional (harbor-rs.lib ? mkVerifyStaticElf) (harbor-rs.lib.mkVerifyStaticElf {inherit pkgs;})
+            ++ extraPackages;
+          shellHook = ''
+            harbor_rustc=${lib.escapeShellArg "${rustToolchain}/bin/rustc"}
+            harbor_sysroot="$("$harbor_rustc" --print sysroot)" || exit 1
+            harbor_version="$("$harbor_rustc" -vV)" || exit 1
+            if [[ ! "$harbor_version" =~ (^|$'\n')'host: '([^[:space:]]+) ]]; then
+              echo 'mkStaticMuslShell: rustc -vV did not report a host triple' >&2
+              exit 1
+            fi
+            harbor_linker="$harbor_sysroot/lib/rustlib/''${BASH_REMATCH[2]}/bin/rust-lld"
+            if [[ ! -x "$harbor_linker" || ! -f "$harbor_linker" ]]; then
+              printf 'mkStaticMuslShell: rust-lld is missing or not executable: %s\n' "$harbor_linker" >&2
+              exit 1
+            fi
+            ${lib.concatMapStringsSep "\n" (target: ''export ${targetEnv target}_LINKER="$harbor_linker"'') targets}
+            unset harbor_rustc harbor_sysroot harbor_version harbor_linker
+            ${shellHook}
+          '';
+        }
+        // builtins.listToAttrs (map (target: lib.nameValuePair "${targetEnv target}_RUSTFLAGS" rustflags) targets));
+
+  mkStaticMuslShell = harbor-rs.lib.mkStaticMuslShell or staticMuslShellFallback;
+
   mkDevShells = {
     pkgs,
     cross ? null,
@@ -83,6 +131,7 @@
     x11 ? false,
     visualTest ? pkgs.stdenv.hostPlatform.isLinux,
     visualTestProfile ? "mesa-radv",
+    ktxTools ? false,
     fragpipe ? null,
     steampipe ? null,
     android ? null,
@@ -129,6 +178,7 @@
     packages =
       lib.optionals pkgs.stdenv.hostPlatform.isLinux deps.buildInputs
       ++ visual.packages
+      ++ lib.optional ktxTools pkgs.ktx-tools
       ++ builtins.filter (p: p != null) (map (toolPackage pkgs) [fragpipe steampipe])
       ++ extraPackages;
     env =
@@ -233,5 +283,5 @@
       };
     };
 in {
-  inherit bevyDeps mkVisualTestEnv mkDevShells mkAndroid mkTestCluster mkBevyProject mkBevyFlake;
+  inherit bevyDeps mkVisualTestEnv mkStaticMuslShell mkDevShells mkAndroid mkTestCluster mkBevyProject mkBevyFlake;
 }
